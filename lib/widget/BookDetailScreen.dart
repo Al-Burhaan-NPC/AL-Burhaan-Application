@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:webview_flutter/webview_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/BookDetail.dart';
 import '../services/KohaApiService.dart';
 
@@ -21,18 +21,15 @@ class BookDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget youtubeVideoSection(String? youtubeUrl) {
-    if (youtubeUrl == null || youtubeUrl.isEmpty) return SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16.0),
-      child: Container(
-        height: 200,
-        child: WebView(
-          initialUrl: youtubeUrl,
-          javascriptMode: JavascriptMode.unrestricted,
-        ),
-      ),
-    );
+  Future<void> _launchURL(String url, BuildContext context) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Could not open link.")),
+      );
+    }
   }
 
   @override
@@ -74,16 +71,10 @@ class BookDetailScreen extends StatelessWidget {
                         detailSection("Physical Description", snapshot.data!.physicalDescription),
                         detailSection("Series", snapshot.data!.series),
                         detailSection("Notes", snapshot.data!.notes),
-                        youtubeVideoSection(snapshot.data!.youtubeUrl),
                         if (snapshot.data!.ebookUrl != null)
                           ElevatedButton(
-                              onPressed: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (context) => WebViewContainer(url: snapshot.data!.ebookUrl!)
-                                  )
-                              ),
-                              child: Text('Read eBook')
+                            onPressed: () => _launchURL(snapshot.data!.ebookUrl!, context),
+                            child: Text('Read eBook'),
                           ),
                       ],
                     ),
@@ -99,23 +90,6 @@ class BookDetailScreen extends StatelessWidget {
           }
           return Center(child: CircularProgressIndicator());
         },
-      ),
-    );
-  }
-}
-
-class WebViewContainer extends StatelessWidget {
-  final String url;
-
-  WebViewContainer({required this.url});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text("Content Viewer")),
-      body: WebView(
-        initialUrl: url,
-        javascriptMode: JavascriptMode.unrestricted,
       ),
     );
   }
