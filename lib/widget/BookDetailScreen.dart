@@ -76,7 +76,7 @@ class BookDetailScreen extends StatelessWidget {
                             onPressed: () => _launchURL(snapshot.data!.ebookUrl!, context),
                             child: Text('Read eBook'),
                           ),
-                      ],
+                      ], //test
                     ),
                   ),
                 ],

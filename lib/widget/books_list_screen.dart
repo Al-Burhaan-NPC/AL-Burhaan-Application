@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../models/book_response.dart';
 import '../services/KohaApiService.dart';
 import 'BookDetailScreen.dart';
@@ -16,14 +20,61 @@ class _BooksListScreenState extends State<BooksListScreen> {
   bool isLoading = false;
   final TextEditingController _searchController = TextEditingController();
 
-  void _fetchBooks({String? query}) {
-    if (query != null) {
-      books.clear();   // Clear existing books for a new search
-      currentPage = 1; // Reset pagination
+  Timer? _debounce;
+  String currentQuery = '';
+
+  // Store favorite book IDs here
+  Set<String> favoriteBookIds = {};
+
+  bool showFavoritesOnly = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFavorites();
+    _fetchBooks();
+
+    _scrollController.addListener(() {
+      if (_scrollController.position.atEdge &&
+          _scrollController.position.pixels != 0 &&
+          !isLoading &&
+          !showFavoritesOnly) {
+        _fetchBooks(reset: false);
+      }
+    });
+
+    _searchController.addListener(() {
+      _onSearchChanged(_searchController.text);
+      setState(() {}); // to show/hide clear icon
+    });
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _scrollController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String query) {
+    if (_debounce?.isActive ?? false) _debounce?.cancel();
+
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      _fetchBooks(reset: true, query: query.trim());
+    });
+  }
+
+  void _fetchBooks({bool reset = false, String? query}) {
+    if (reset) {
+      books.clear();
+      currentPage = 1;
+      currentQuery = query ?? '';
     }
 
     setState(() => isLoading = true);
-    KohaApiService().fetchBooks(currentPage, query: query).then((newBooks) {
+
+    KohaApiService().fetchBooks(currentPage, query: currentQuery).then((newBooks) {
       setState(() {
         books.addAll(newBooks);
         isLoading = false;
@@ -31,37 +82,59 @@ class _BooksListScreenState extends State<BooksListScreen> {
       });
     }).catchError((error) {
       setState(() => isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error fetching books: $error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching books: $error')),
+      );
     });
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _fetchBooks();
-    _scrollController.addListener(() {
-      if (_scrollController.position.atEdge && _scrollController.position.pixels != 0 && !isLoading) {
-        _fetchBooks();
+  Future<void> _loadFavorites() async {
+    final prefs = await SharedPreferences.getInstance();
+    final favs = prefs.getStringList('favoriteBookIds') ?? [];
+    setState(() {
+      favoriteBookIds = favs.toSet();
+    });
+  }
+
+  Future<void> _toggleFavorite(dynamic bookId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final bookIdStr = bookId.toString(); // <-- convert here
+    setState(() {
+      if (favoriteBookIds.contains(bookIdStr)) {
+        favoriteBookIds.remove(bookIdStr);
+      } else {
+        favoriteBookIds.add(bookIdStr);
       }
     });
+    await prefs.setStringList('favoriteBookIds', favoriteBookIds.toList());
+  }
+
+  // Returns filtered books when showing favorites only
+  List<BookResponse> get _displayedBooks {
+    if (showFavoritesOnly) {
+      return books.where((book) => favoriteBookIds.contains(book.biblioId.toString())).toList();
+    } else {
+      return books;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    const double imageSize = 80.0;
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('Books'),
-        actions: <Widget>[
+        title: const Text('Books'),
+        actions: [
           IconButton(
-            icon: Icon(Icons.search),
+            icon: Icon(showFavoritesOnly ? Icons.favorite : Icons.favorite_border),
+            tooltip: showFavoritesOnly ? 'Show All Books' : 'Show Favorites',
             onPressed: () {
-              if (_searchController.text.isNotEmpty) {
-                books.clear();
-                currentPage = 1; // Reset page count to fetch from the first page
-                _fetchBooks(query: _searchController.text);
-              }
+              setState(() {
+                showFavoritesOnly = !showFavoritesOnly;
+              });
             },
-          )
+          ),
         ],
       ),
       body: Column(
@@ -72,52 +145,71 @@ class _BooksListScreenState extends State<BooksListScreen> {
               controller: _searchController,
               decoration: InputDecoration(
                 hintText: 'Search for books',
-                border: OutlineInputBorder(),
-                suffixIcon: IconButton(
-                  icon: Icon(Icons.search),
+                border: const OutlineInputBorder(),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                  icon: const Icon(Icons.clear),
                   onPressed: () {
-                    // Clear current book list, reset page counter, and fetch books based on the search query
-                    books.clear();
-                    currentPage = 1;
-                    _fetchBooks(query: _searchController.text.trim());  // Ensure we trim the text to remove any leading/trailing whitespaces
+                    _searchController.clear();
+                    _fetchBooks(reset: true);
                   },
-                ),
+                )
+                    : const Icon(Icons.search),
               ),
+              textInputAction: TextInputAction.search,
               onSubmitted: (value) {
-                // Also initiate search when keyboard search is pressed
-                books.clear();
-                currentPage = 1;
-                _fetchBooks(query: value.trim());  // Same trim here
+                _fetchBooks(reset: true, query: value.trim());
               },
             ),
           ),
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
-              itemCount: books.length + (isLoading ? 1 : 0),
+              itemCount: _displayedBooks.length + (isLoading && !showFavoritesOnly ? 1 : 0),
               itemBuilder: (context, index) {
-                if (index == books.length) {
-                  return Center(child: CircularProgressIndicator());
+                if (index == _displayedBooks.length) {
+                  return const Center(child: CircularProgressIndicator());
                 } else {
-                  final book = books[index];
+                  final book = _displayedBooks[index];
+                  final isFavorite = favoriteBookIds.contains(book.biblioId.toString());
                   return Card(
                     child: ListTile(
-                      leading: CachedNetworkImage(
-                        imageUrl: book.imageUrl!,
-                        placeholder: (context, url) => CircularProgressIndicator(),
-                        errorWidget: (context, url, error) => Icon(Icons.error),
-                        width: 100,
-                        height: 100,
-                        fit: BoxFit.cover,
+                      leading: Semantics(
+                        label: 'Cover image of ${book.title}',
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: CachedNetworkImage(
+                            imageUrl: book.imageUrl ?? '',
+                            placeholder: (context, url) => SizedBox(
+                              width: imageSize,
+                              height: imageSize,
+                              child: const Center(child: CircularProgressIndicator()),
+                            ),
+                            errorWidget: (context, url, error) =>
+                            const Icon(Icons.broken_image, size: imageSize),
+                            width: imageSize,
+                            height: imageSize,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
                       ),
                       title: Text(book.title),
                       subtitle: Text(book.author),
+                      trailing: IconButton(
+                        icon: Icon(
+                          isFavorite ? Icons.favorite : Icons.favorite_border,
+                          color: isFavorite ? Colors.red : null,
+                        ),
+                        onPressed: () {
+                          _toggleFavorite(book.biblioId);
+                        },
+                      ),
                       onTap: () {
                         Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => BookDetailScreen(biblioId: book.biblioId)
-                            )
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => BookDetailScreen(biblioId: book.biblioId),
+                          ),
                         );
                       },
                     ),
