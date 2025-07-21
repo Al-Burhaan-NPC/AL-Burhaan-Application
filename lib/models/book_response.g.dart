@@ -8,6 +8,7 @@ part of 'book_response.dart';
 
 BookResponse _$BookResponseFromJson(Map<String, dynamic> json) => BookResponse(
       biblioId: (json['biblioId'] as num).toInt(),
+      biblionumber: (json['biblionumber'] as num?)?.toInt(),
       title: json['title'] as String,
       author: json['author'] as String,
       isbn: json['isbn'] as String?,
@@ -19,6 +20,7 @@ BookResponse _$BookResponseFromJson(Map<String, dynamic> json) => BookResponse(
 Map<String, dynamic> _$BookResponseToJson(BookResponse instance) =>
     <String, dynamic>{
       'biblioId': instance.biblioId,
+      'biblionumber': instance.biblionumber,
       'title': instance.title,
       'author': instance.author,
       'isbn': instance.isbn,

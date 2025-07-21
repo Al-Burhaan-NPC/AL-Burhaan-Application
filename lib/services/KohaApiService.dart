@@ -22,7 +22,9 @@ class KohaApiService {
 
     print("Requesting URL: $url");
     if (response.statusCode == 200) {
-      List<dynamic> booksJson = jsonDecode(utf8.decode(response.bodyBytes));
+      final responseBody = utf8.decode(response.bodyBytes);
+      print("API Response: $responseBody");
+      List<dynamic> booksJson = jsonDecode(responseBody);
       return booksJson.map((data) => BookResponse.fromJson(data)).toList();
     } else {
       print("Failed to fetch books. Status code: ${response.statusCode}, Response: ${response.body}");
