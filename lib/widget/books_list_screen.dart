@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/book_response.dart';
 import '../services/KohaApiService.dart';
@@ -171,6 +172,118 @@ class _BooksListScreenState extends State<BooksListScreen> {
     );
   }
 
+  Future<void> _savePendingHold(BookResponse book) async {
+    final prefs = await SharedPreferences.getInstance();
+    final pendingHolds = prefs.getStringList('pendingHolds') ?? [];
+    final holdData = json.encode({
+      'biblioId': book.biblioId,
+      'title': book.title,
+      'author': book.author ?? 'Unknown',
+      'timestamp': DateTime.now().toIso8601String(),
+    });
+    pendingHolds.add(holdData);
+    await prefs.setStringList('pendingHolds', pendingHolds);
+  }
+
+  Future<void> _placeHold(BookResponse book) async {
+    final prefs = await SharedPreferences.getInstance();
+    final cardnumber = prefs.getString('cardnumber') ?? '';
+
+    if (cardnumber.isEmpty) {
+      Fluttertoast.showToast(
+        msg: tr('login_required_to_place_hold'),
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: Colors.red,
+        textColor: Colors.white,
+        fontSize: 16.0,
+      );
+      return;
+    }
+
+    if (book.biblioId <= 0) {
+      Fluttertoast.showToast(
+        msg: tr('invalid_biblio_id'),
+        toastLength: Toast.LENGTH_LONG,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: Colors.red,
+        textColor: Colors.white,
+        fontSize: 16.0,
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(tr('confirm_hold_request')),
+        content: Text(tr('send_hold_email_confirmation', args: [book.title])),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(tr('cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(tr('confirm')),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final libraryEmail = 'library@al-burhaan.org'; // Change to our email.
+    final result = await _sendHoldEmail(
+      cardnumber: cardnumber,
+      book: book,
+      libraryEmail: libraryEmail,
+    );
+
+    if (result) {
+      await _savePendingHold(book);
+      Fluttertoast.showToast(
+        msg: tr('hold_email_sent'),
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: Colors.green,
+        textColor: Colors.white,
+        fontSize: 16.0,
+      );
+    } else {
+      Fluttertoast.showToast(
+        msg: tr('failed_to_open_email'),
+        toastLength: Toast.LENGTH_LONG,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: Colors.red,
+        textColor: Colors.white,
+        fontSize: 16.0,
+      );
+    }
+  }
+
+  Future<bool> _sendHoldEmail({
+    required String cardnumber,
+    required BookResponse book,
+    required String libraryEmail,
+  }) async {
+    try {
+      final subject = Uri.encodeComponent('Hold Request for Book: ${book.title}');
+      final body = Uri.encodeComponent('''
+Hold Request Details:
+Patron Card Number: $cardnumber
+Book Title: ${book.title}
+Author: ${book.author ?? 'Unknown'}
+Biblio ID: ${book.biblioId}
+Please process this hold request for the patron.
+''');
+      final mailtoUri = Uri.parse('mailto:$libraryEmail?subject=$subject&body=$body');
+      return await launchUrl(mailtoUri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      return false;
+    }
+  }
+
   List<BookResponse> get _displayedBooks {
     List<BookResponse> filtered = books;
 
@@ -252,102 +365,6 @@ class _BooksListScreenState extends State<BooksListScreen> {
     );
   }
 
-  // Updated _addToKart method using Koha book bags (virtual shelves)
-  Future<void> _addToKart(int biblioitemnumber) async {
-    final prefs = await SharedPreferences.getInstance();
-    final cardnumber = prefs.getString('cardnumber') ?? '';
-    final password = prefs.getString('password') ?? '';
-
-    if (cardnumber.isEmpty || password.isEmpty) {
-      Fluttertoast.showToast(
-        msg: tr('login_required_to_add_to_kart'),
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.BOTTOM,
-        backgroundColor: Colors.red,
-        textColor: Colors.white,
-        fontSize: 16.0,
-      );
-      return;
-    }
-
-    final String basicAuth = base64Encode(utf8.encode('$cardnumber:$password'));
-
-    // First, get the user’s default or first virtual shelf (book bag)
-    final shelfUrl = Uri.parse('https://library.al-burhaan.org/api/v1/patrons/$cardnumber/virtualshelves');
-    final shelfHeaders = {
-      'Authorization': 'Basic $basicAuth',
-      'Accept': 'application/json',
-    };
-
-    try {
-      final shelfResponse = await http.get(shelfUrl, headers: shelfHeaders);
-      if (shelfResponse.statusCode == 200) {
-        final shelves = jsonDecode(shelfResponse.body);
-        if (shelves.isEmpty) {
-          Fluttertoast.showToast(
-            msg: tr('no_virtual_shelf_found'),
-            toastLength: Toast.LENGTH_SHORT,
-            gravity: ToastGravity.BOTTOM,
-            backgroundColor: Colors.orange,
-            textColor: Colors.white,
-            fontSize: 16.0,
-          );
-          return;
-        }
-
-        final shelfId = shelves[0]['shelfnumber'];
-
-        final addUrl = Uri.parse(
-            'https://library.al-burhaan.org/api/v1/virtualshelves/$shelfId/items');
-        final addHeaders = {
-          'Authorization': 'Basic $basicAuth',
-          'Content-Type': 'application/json',
-        };
-        final addBody = jsonEncode({'biblioitemnumber': biblioitemnumber});
-
-        final addResponse = await http.post(addUrl, headers: addHeaders, body: addBody);
-
-        if (addResponse.statusCode == 200 || addResponse.statusCode == 201) {
-          Fluttertoast.showToast(
-            msg: tr('added_to_kart'),
-            toastLength: Toast.LENGTH_SHORT,
-            gravity: ToastGravity.BOTTOM,
-            backgroundColor: Colors.green,
-            textColor: Colors.white,
-            fontSize: 16.0,
-          );
-        } else {
-          Fluttertoast.showToast(
-            msg: tr('failed_to_add_to_kart'),
-            toastLength: Toast.LENGTH_SHORT,
-            gravity: ToastGravity.BOTTOM,
-            backgroundColor: Colors.red,
-            textColor: Colors.white,
-            fontSize: 16.0,
-          );
-        }
-      } else {
-        Fluttertoast.showToast(
-          msg: tr('failed_to_retrieve_shelves'),
-          toastLength: Toast.LENGTH_SHORT,
-          gravity: ToastGravity.BOTTOM,
-          backgroundColor: Colors.red,
-          textColor: Colors.white,
-          fontSize: 16.0,
-        );
-      }
-    } catch (e) {
-      Fluttertoast.showToast(
-        msg: '${tr('error')}: $e',
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.BOTTOM,
-        backgroundColor: Colors.red,
-        textColor: Colors.white,
-        fontSize: 16.0,
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     const double imageSize = 80.0;
@@ -371,12 +388,12 @@ class _BooksListScreenState extends State<BooksListScreen> {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.shopping_cart),
-            tooltip: tr('view_cart'),
+            icon: const Icon(Icons.bookmark),
+            tooltip: tr('view_holds'),
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const CartScreen()),
+                MaterialPageRoute(builder: (_) => const HoldsScreen()),
               );
             },
           ),
@@ -461,7 +478,7 @@ class _BooksListScreenState extends State<BooksListScreen> {
                                   const Icon(Icons.broken_image, size: imageSize),
                                   width: imageSize,
                                   height: imageSize,
-                                  fit: BoxFit.contain, // This makes image fit on list.
+                                  fit: BoxFit.contain,
                                 ),
                               ),
                               title: Text(book.title, style: const TextStyle(fontWeight: FontWeight.w600)),
@@ -504,13 +521,13 @@ class _BooksListScreenState extends State<BooksListScreen> {
                                     onPressed: () => _toggleFavorite(book.biblioId),
                                   ),
                                   IconButton(
-                                    icon: const Icon(Icons.add_shopping_cart),
-                                    tooltip: tr('add_to_kart'),
+                                    icon: const Icon(Icons.bookmark_add),
+                                    tooltip: tr('place_hold'),
                                     onPressed: () {
-                                      if (book.biblionumber != null) {
-                                        _addToKart(book.biblionumber!);
+                                      if (book.biblioId != null) {
+                                        _placeHold(book);
                                       } else {
-                                        Fluttertoast.showToast(msg: tr('no_item_number_available'));
+                                        Fluttertoast.showToast(msg: tr('no_biblio_id_available'));
                                       }
                                     },
                                   ),
@@ -534,8 +551,6 @@ class _BooksListScreenState extends State<BooksListScreen> {
               ),
             ],
           ),
-
-          // Floating Scroll to Top Button
           Positioned(
             bottom: 20,
             right: 20,
@@ -562,18 +577,212 @@ class _BooksListScreenState extends State<BooksListScreen> {
   }
 }
 
-// Placeholder CartScreen to avoid errors, implement as needed
-class CartScreen extends StatelessWidget {
-  const CartScreen({Key? key}) : super(key: key);
+class HoldsScreen extends StatefulWidget {
+  const HoldsScreen({Key? key}) : super(key: key);
+
+  @override
+  _HoldsScreenState createState() => _HoldsScreenState();
+}
+
+class _HoldsScreenState extends State<HoldsScreen> {
+  List<dynamic> holds = [];
+  List<Map<String, dynamic>> pendingHolds = [];
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchHolds();
+    _loadPendingHolds();
+  }
+
+  Future<void> _loadPendingHolds() async {
+    final prefs = await SharedPreferences.getInstance();
+    final pendingHoldsList = prefs.getStringList('pendingHolds') ?? [];
+    setState(() {
+      pendingHolds = pendingHoldsList
+          .map((hold) => json.decode(hold) as Map<String, dynamic>)
+          .toList();
+    });
+  }
+
+  Future<void> _fetchHolds() async {
+    final prefs = await SharedPreferences.getInstance();
+    final cardnumber = prefs.getString('cardnumber') ?? '';
+    final password = prefs.getString('password') ?? '';
+
+    if (cardnumber.isEmpty || password.isEmpty) {
+      Fluttertoast.showToast(
+        msg: tr('login_required_to_view_holds'),
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: Colors.red,
+        textColor: Colors.white,
+        fontSize: 16.0,
+      );
+      setState(() => isLoading = false);
+      return;
+    }
+
+    final String basicAuth = base64Encode(utf8.encode('$cardnumber:$password'));
+
+    final holdsUrl = Uri.parse('https://library.al-burhaan.org/api/v1/patrons/$cardnumber/holds');
+    final headers = {
+      'Authorization': 'Basic $basicAuth',
+      'Accept': 'application/json',
+    };
+
+    try {
+      final response = await http.get(holdsUrl, headers: headers);
+      if (response.statusCode == 200) {
+        setState(() {
+          holds = jsonDecode(response.body);
+          isLoading = false;
+        });
+      } else {
+        Fluttertoast.showToast(
+          msg: tr('viewing_holds'),
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          backgroundColor: Colors.green,
+          textColor: Colors.white,
+          fontSize: 16.0,
+        );
+        setState(() => isLoading = false);
+      }
+    } catch (e) {
+      Fluttertoast.showToast(
+        msg: '${tr('error')}: $e',
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: Colors.red,
+        textColor: Colors.white,
+        fontSize: 16.0,
+      );
+      setState(() => isLoading = false);
+    }
+  }
+
+  Future<void> _cancelHold(int holdId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final cardnumber = prefs.getString('cardnumber') ?? '';
+    final password = prefs.getString('password') ?? '';
+
+    final String basicAuth = base64Encode(utf8.encode('$cardnumber:$password'));
+
+    final cancelUrl = Uri.parse('https://library.al-burhaan.org/api/v1/holds/$holdId');
+    final headers = {
+      'Authorization': 'Basic $basicAuth',
+      'Accept': 'application/json',
+    };
+
+    try {
+      final response = await http.delete(cancelUrl, headers: headers);
+      if (response.statusCode == 204) {
+        Fluttertoast.showToast(
+          msg: tr('hold_cancelled_successfully'),
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          backgroundColor: Colors.green,
+          textColor: Colors.white,
+          fontSize: 16.0,
+        );
+        await _fetchHolds();
+      } else {
+        Fluttertoast.showToast(
+          msg: tr('failed_to_cancel_hold'),
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          backgroundColor: Colors.red,
+          textColor: Colors.white,
+          fontSize: 16.0,
+        );
+      }
+    } catch (e) {
+      Fluttertoast.showToast(
+        msg: '${tr('error')}: $e',
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: Colors.red,
+        textColor: Colors.white,
+        fontSize: 16.0,
+      );
+    }
+  }
+
+  Future<void> _cancelPendingHold(String biblioId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final pendingHoldsList = prefs.getStringList('pendingHolds') ?? [];
+    pendingHoldsList.removeWhere((hold) {
+      final holdData = json.decode(hold) as Map<String, dynamic>;
+      return holdData['biblioId'].toString() == biblioId;
+    });
+    await prefs.setStringList('pendingHolds', pendingHoldsList);
+    await _loadPendingHolds();
+    Fluttertoast.showToast(
+      msg: tr('pending_hold_cancelled'),
+      toastLength: Toast.LENGTH_SHORT,
+      gravity: ToastGravity.BOTTOM,
+      backgroundColor: Colors.green,
+      textColor: Colors.white,
+      fontSize: 16.0,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final allHolds = [
+      ...pendingHolds.map((hold) => {
+        'biblio': {
+          'title': hold['title'],
+          'author': hold['author'],
+        },
+        'status': tr('pending_email'),
+        'pickup_library_id': 'MAIN',
+        'biblioId': hold['biblioId'],
+        'isPending': true,
+      }),
+      ...holds,
+    ];
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(tr('cart')),
+        title: Text(
+          tr('holds'),
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
       ),
-      body: Center(
-        child: Text(tr('cart_is_empty')),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : allHolds.isEmpty
+          ? Center(child: Text(tr('no_holds')))
+          : ListView.builder(
+        itemCount: allHolds.length,
+        itemBuilder: (context, index) {
+          final hold = allHolds[index];
+          final isPending = hold['isPending'] == true;
+          return Card(
+            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            child: ListTile(
+              title: Text(hold['biblio']['title'] ?? 'Unknown Title'),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(hold['biblio']['author'] ?? 'Unknown Author'),
+                  Text('Status: ${hold['status'] ?? 'Pending'}'),
+                  Text('Pickup Library: ${hold['pickup_library_id'] ?? 'MAIN'}'),
+                ],
+              ),
+              trailing: IconButton(
+                icon: const Icon(Icons.cancel),
+                tooltip: tr(isPending ? 'cancel_pending_hold' : 'cancel_hold'),
+                onPressed: () => isPending
+                    ? _cancelPendingHold(hold['biblioId'].toString())
+                    : _cancelHold(hold['hold_id']),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

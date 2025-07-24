@@ -35,15 +35,13 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   Future<void> _navigateAfterSplash() async {
     await Future.delayed(const Duration(seconds: 3));
 
-    final prefs = await SharedPreferences.getInstance();
-    final isLoggedIn = prefs.containsKey('auth');
-
     if (!mounted) return;
 
+    //  Skip login and always go to PublicHomePage
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) => isLoggedIn ? const PublicHomePage() : const LoginScreen(),
+        builder: (_) => const PublicHomePage(),
       ),
     );
   }

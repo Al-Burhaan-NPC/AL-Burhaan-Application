@@ -76,7 +76,34 @@
   "login_required_to_add_to_kart": "کارٹ میں شامل کرنے کے لیے لاگ ان کریں",
   "no_item_number_available": "اس کتاب کے لیے کوئی آئٹم نمبر دستیاب نہیں",
   "your_barcode": "آپ کا بارکوڈ",
-  "share_barcode": "بارکوڈ شیئر کریں"
-
-
+  "share_barcode": "بارکوڈ شیئر کریں",
+  "login_required_to_place_hold": "ہولڈ رکھنے کے لیے لاگ ان ضروری ہے",
+  "hold_placed_successfully": "ہولڈ کامیابی سے رکھا گیا",
+  "failed_to_place_hold": "ہولڈ رکھنے میں ناکامی",
+  "view_holds": "ہولڈز دیکھیں",
+  "no_holds": "کوئی ہولڈز نہیں ملے",
+  "cancel_hold": "ہولڈ منسوخ کریں",
+  "failed_to_fetch_holds": "ہولڈز حاصل کرنے میں ناکامی",
+  "hold_cancelled_successfully": "ہولڈ کامیابی سے منسوخ کیا گیا",
+  "failed_to_cancel_hold": "ہولڈ منسوخ کرنے میں ناکامی",
+  "no_biblio_id_available": "کوئی ببلیو آئی ڈی دستیاب نہیں",
+  "error": "خرابی",
+  "holds": "ہولڈز",
+  "request_timed_out": "درخواست کا وقت ختم ہو گیا",
+  "confirm_hold_request": "ہولڈ درخواست کی تصدیق کریں",
+  "send_hold_email_confirmation": "منتخب کردہ کتاب پر ہولڈ رکھنے کے لیے ای میل بھیجیں؟",
+  "pending_email": "زیر التوا ای میل",
+  "pending_hold_cancelled": "زیر التوا ہولڈ منسوخ ہو گیا",
+  "cancel_pending_hold": "زیر التوا ہولڈ منسوخ کریں",
+  "viewing_holds": "ہولڈز دیکھنا",
+  "confirm": "تصدیق کریں",
+  "cancel": "منسوخ کریں",
+  "recommended_books": "تجویز کردہ کتب",
+  "favorite_books": "پسندیدہ کتب",
+  "added_to_favorites": "پسندیدہ میں شامل کر دیا گیا!",
+  "removed_from_favorites": "پسندیدہ سے ہٹا دیا گیا!",
+  "no_books_found": "کوئی کتابیں نہیں ملیں"
 }
+
+
+

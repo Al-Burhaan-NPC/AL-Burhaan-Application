@@ -39,17 +39,26 @@ class _LoginScreenState extends State<LoginScreen> {
       final headers = {'Authorization': 'Basic $authString'};
 
       final authResponse = await http.get(
-        Uri.parse('$kohaBaseUrl/api/v1/'),
+        Uri.parse('$kohaBaseUrl/api/v1/patrons?me=1'),
         headers: headers,
       );
 
       if (authResponse.statusCode == 200) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('auth', authString);
-        await prefs.setString('cardnumber', cardnumber);
-        await prefs.setString('password', password);
+        final data = jsonDecode(authResponse.body);
+        if (data['cardnumber'] != null) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('auth', authString);
+          await prefs.setString('cardnumber', cardnumber);
+          await prefs.setString('password', password);
+          await prefs.setString('userid', data['userid'] ?? '');
+          await prefs.setString('firstname', data['firstname'] ?? '');
+          await prefs.setString('surname', data['surname'] ?? '');
+          await prefs.setString('email', data['email'] ?? '');
 
-        Navigator.pushReplacementNamed(context, '/home');
+          Navigator.pushReplacementNamed(context, '/home');
+        } else {
+          throw Exception('invalid_credentials'.tr());
+        }
       } else {
         throw Exception('invalid_credentials'.tr());
       }
@@ -80,7 +89,7 @@ class _LoginScreenState extends State<LoginScreen> {
         MaterialPageRoute(
           builder: (_) => WebViewScreen(
             title: 'register_account'.tr(),
-            url: 'https://library.al-burhaan.org/cgi-bin/koha/opac-memberentry.pl',
+            url: url.toString(),
           ),
         ),
       );
@@ -183,7 +192,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ],
               ),
               const SizedBox(height: 24),
-              // Grey Animated Koha Version Box (at the bottom)
               TweenAnimationBuilder<double>(
                 tween: Tween<double>(begin: 0, end: 1),
                 duration: const Duration(seconds: 2),

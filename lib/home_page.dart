@@ -8,6 +8,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/book_response.dart';
 import '../../services/KohaApiService.dart';
 import '../../widget/BookDetailScreen.dart';
+import 'login_screen.dart';
+import 'splash_screen.dart';
 
 class PublicHomePage extends StatefulWidget {
   const PublicHomePage({Key? key}) : super(key: key);
@@ -107,8 +109,6 @@ class _PublicHomePageState extends State<PublicHomePage> {
   }
 }
 
-// LibraryDashboard and BookListPage
-
 class _LibraryDashboard extends StatefulWidget {
   const _LibraryDashboard({Key? key}) : super(key: key);
 
@@ -122,6 +122,7 @@ class _LibraryDashboardState extends State<_LibraryDashboard>
   List<BookResponse> favoriteBooks = [];
   Set<String> favoriteIds = {};
   bool isLoading = true;
+  bool isLoggedIn = false;
 
   late AnimationController _controller;
   late Animation<Offset> _slideAnimation;
@@ -131,6 +132,7 @@ class _LibraryDashboardState extends State<_LibraryDashboard>
   void initState() {
     super.initState();
     _loadDashboardData();
+    _checkLoginStatus();
 
     _controller = AnimationController(
       duration: const Duration(milliseconds: 800),
@@ -154,6 +156,13 @@ class _LibraryDashboardState extends State<_LibraryDashboard>
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  Future<void> _checkLoginStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+    });
   }
 
   Future<void> _loadDashboardData() async {
@@ -229,6 +238,39 @@ class _LibraryDashboardState extends State<_LibraryDashboard>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (!isLoggedIn)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: ElevatedButton.icon(
+              onPressed: () async {
+                // Navigate to LoginScreen and wait for result
+                final result = await Navigator.push<bool>(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                );
+                // Check if login was successful
+                if (result == true) {
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setBool('isLoggedIn', true);
+                  setState(() {
+                    isLoggedIn = true;
+                  });
+                }
+              },
+              icon: const Icon(Icons.login, color: Colors.white),
+              label: Text(
+                'login'.tr(),
+                style: const TextStyle(color: Colors.white, fontSize: 16),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blueAccent,
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: Wrap(

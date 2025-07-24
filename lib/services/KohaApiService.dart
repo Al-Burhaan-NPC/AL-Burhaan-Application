@@ -5,8 +5,8 @@ import 'package:alburhaan/models/BookDetail.dart';
 
 class KohaApiService {
   final String baseUrl = "https://library.al-burhaan.org/api/v1/";
-  final String username = 'Alburhaan';
-  final String password = 'H1b1scus_16';
+  final String username = 'AlburhaanApp.App';
+  final String password = 'Alburhaan1';
 
   Future<List<BookResponse>> fetchBooks(int page, {String? query}) async {
     String basicAuth = 'Basic ' + base64Encode(utf8.encode('$username:$password'));

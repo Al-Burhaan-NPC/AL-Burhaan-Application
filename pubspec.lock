@@ -395,6 +395,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.28"
+  flutter_staggered_animations:
+    dependency: "direct main"
+    description:
+      name: flutter_staggered_animations
+      sha256: "81d3c816c9bb0dca9e8a5d5454610e21ffb068aedb2bde49d2f8d04f75538351"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.1.1"
   flutter_test:
     dependency: "direct dev"
     description: flutter
@@ -789,6 +797,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.28.0"
+  sensors_plus:
+    dependency: "direct main"
+    description:
+      name: sensors_plus
+      sha256: "6898cd4490ffc27fea4de5976585e92fae55355175d46c6c3b3d719d42f9e230"
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.0.1"
+  sensors_plus_platform_interface:
+    dependency: transitive
+    description:
+      name: sensors_plus_platform_interface
+      sha256: bc472d6cfd622acb4f020e726433ee31788b038056691ba433fec80e448a094f
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.2.0"
   share_plus:
     dependency: "direct main"
     description:

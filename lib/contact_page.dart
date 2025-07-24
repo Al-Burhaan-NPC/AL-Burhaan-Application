@@ -96,18 +96,6 @@ class ContactPage extends StatelessWidget {
                     ),
                     onTap: _launchPhone,
                   ),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.location_on_outlined, color: Colors.white70),
-                    title: Text(
-                      'address'.tr(),
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                    trailing: ElevatedButton(
-                      onPressed: _launchMaps,
-                      child: Text('open_in_maps'.tr()),
-                    ),
-                  ),
                 ],
               ),
             ),
