@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:html/parser.dart' show parse;
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -32,41 +33,220 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
+    if (cardnumber.length < 4) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('invalid_card_number'.tr())),
+      );
+      return;
+    }
+
     setState(() => isLoading = true);
 
+    final client = http.Client();
     try {
       final authString = base64Encode(utf8.encode('$cardnumber:$password'));
-      final headers = {'Authorization': 'Basic $authString'};
+      print('Auth String: $authString'); // Debug
+      final headers = {
+        'Authorization': 'Basic $authString',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      };
 
-      final authResponse = await http.get(
-        Uri.parse('$kohaBaseUrl/api/v1/patrons?me=1'),
+      // Try GET request to /api/v1/patrons/$cardnumber
+      final authResponse = await client.get(
+        Uri.parse('$kohaBaseUrl/api/v1/patrons/$cardnumber'),
         headers: headers,
-      );
+      ).timeout(const Duration(seconds: 10));
+
+      print('GET Status Code: ${authResponse.statusCode}'); // Debug
+      print('GET Response Body: ${authResponse.body}'); // Debug
+      print('GET Response Headers: ${authResponse.headers}'); // Debug
 
       if (authResponse.statusCode == 200) {
-        final data = jsonDecode(authResponse.body);
-        if (data['cardnumber'] != null) {
+        try {
+          final responseData = jsonDecode(authResponse.body);
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('auth', authString);
           await prefs.setString('cardnumber', cardnumber);
-          await prefs.setString('password', password);
-          await prefs.setString('userid', data['userid'] ?? '');
-          await prefs.setString('firstname', data['firstname'] ?? '');
-          await prefs.setString('surname', data['surname'] ?? '');
-          await prefs.setString('email', data['email'] ?? '');
+          await prefs.setString('patron_id', responseData['patron_id']?.toString() ?? '');
+
+          final sessionToken = authResponse.headers['x-koha-session'] ?? '';
+          if (sessionToken.isNotEmpty) {
+            await prefs.setString('session_token', sessionToken);
+          }
 
           Navigator.pushReplacementNamed(context, '/home');
-        } else {
-          throw Exception('invalid_credentials'.tr());
+        } on FormatException {
+          throw Exception('invalid_response_format'.tr());
         }
+      } else if (authResponse.statusCode == 401) {
+        print('API login failed: Invalid credentials'); // Debug
+        // Proceed to OPAC login
+      } else if (authResponse.statusCode == 403) {
+        print('API login failed: Missing permissions'); // Debug
+        // Proceed to OPAC login
+      } else if (authResponse.statusCode == 404) {
+        print('API login failed: Endpoint not found'); // Debug
+        // Proceed to OPAC login
+      } else {
+        throw Exception('server_error'.tr(args: [authResponse.statusCode.toString(), authResponse.body]));
+      }
+
+      // Fallback to OPAC login
+      final opacPageResponse = await client.get(
+        Uri.parse('$kohaBaseUrl/cgi-bin/koha/opac-user.pl'),
+      ).timeout(const Duration(seconds: 10));
+
+      print('OPAC Page Status Code: ${opacPageResponse.statusCode}'); // Debug
+      print('OPAC Page Response Headers: ${opacPageResponse.headers}'); // Debug
+
+      final cookies = opacPageResponse.headers['set-cookie'] ?? '';
+      final opacHeaders = {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Cookie': cookies,
+      };
+
+      String? csrfToken;
+      final document = parse(opacPageResponse.body);
+      final form = document.querySelector('form[action="/cgi-bin/koha/opac-user.pl"]');
+      final hiddenInputs = form?.querySelectorAll('input[type="hidden"]') ?? [];
+      final body = <String, String>{
+        'password': password,
+      };
+
+      for (var input in hiddenInputs) {
+        final name = input.attributes['name'];
+        final value = input.attributes['value'];
+        if (name != null && value != null) {
+          body[name] = value;
+          if (name == 'csrf_token') {
+            csrfToken = value;
+            print('CSRF Token: $csrfToken'); // Debug
+          }
+        }
+      }
+
+      final fieldNames = ['userid', 'username', 'login'];
+      http.Response? opacResponse;
+      String? usedFieldName;
+
+      for (final fieldName in fieldNames) {
+        body[fieldName] = cardnumber;
+
+        final encodedBody = body.entries
+            .map((e) => '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
+            .join('&');
+
+        opacResponse = await client.post(
+          Uri.parse('$kohaBaseUrl/cgi-bin/koha/opac-user.pl'),
+          headers: opacHeaders,
+          body: encodedBody,
+        ).timeout(const Duration(seconds: 10));
+
+        if (opacResponse == null) {
+          print('OPAC $fieldName: Response is null'); // Debug
+          continue;
+        }
+
+        print('OPAC $fieldName Status Code: ${opacResponse.statusCode}'); // Debug
+        print('OPAC $fieldName Response Headers: ${opacResponse.headers}'); // Debug
+        print('OPAC $fieldName Response Body (excerpt): ${opacResponse.body.length > 500 ? opacResponse.body.substring(0, 500) : opacResponse.body}'); // Debug
+
+        final location = opacResponse.headers['location'] ?? '';
+        print('OPAC $fieldName Redirect Location: $location'); // Debug
+
+        String finalResponseBody = opacResponse.body;
+        http.Response? redirectResponse;
+
+        if (location.isNotEmpty && location.contains('opac-')) {
+          redirectResponse = await client.get(
+            Uri.parse(location.startsWith('http') ? location : '$kohaBaseUrl$location'),
+            headers: {'Cookie': cookies},
+          ).timeout(const Duration(seconds: 10));
+          print('OPAC $fieldName Redirect Status Code: ${redirectResponse.statusCode}'); // Debug
+          print('OPAC $fieldName Redirect Response Body (excerpt): ${redirectResponse.body.length > 500 ? redirectResponse.body.substring(0, 500) : redirectResponse.body}'); // Debug
+          finalResponseBody = redirectResponse.body;
+        }
+
+        final errorMessages = [
+          'Invalid username or password',
+          'Login failed',
+          'The username or password you entered is incorrect',
+          'Please enter a valid username and password',
+          'incorrect',
+          'invalid login',
+          'authentication failed',
+          'error-message',
+        ];
+        final hasError = finalResponseBody.isNotEmpty && errorMessages.any((msg) => finalResponseBody.toLowerCase().contains(msg.toLowerCase()));
+        final hasUserContent = finalResponseBody.isNotEmpty &&
+            (finalResponseBody.contains('userdetails') ||
+                finalResponseBody.contains('My Summary') ||
+                finalResponseBody.contains('My Fines') ||
+                finalResponseBody.contains('My Holds') ||
+                finalResponseBody.contains(cardnumber));
+        final isRedirected = location.contains('opac-account.pl') ||
+            location.contains('opac-main.pl') ||
+            location.contains('opac-user.pl?opac-user');
+
+        print('OPAC $fieldName Has Error: $hasError'); // Debug
+        print('OPAC $fieldName Has User Content: $hasUserContent'); // Debug
+        print('OPAC $fieldName Is Redirected: $isRedirected'); // Debug
+
+        if (opacResponse.statusCode == 200 && !hasError && (hasUserContent || isRedirected)) {
+          if (redirectResponse != null && redirectResponse.statusCode == 200) {
+            final redirectDoc = parse(redirectResponse.body);
+            if (redirectDoc.querySelector('#userdetails') != null ||
+                redirectDoc.querySelector('.patroninfo') != null) {
+              usedFieldName = fieldName;
+              break;
+            }
+          } else if (hasUserContent) {
+            usedFieldName = fieldName;
+            break;
+          }
+        }
+      }
+
+      if (opacResponse != null && opacResponse.statusCode == 200 && usedFieldName != null) {
+        final sessionCookies = opacResponse.headers['set-cookie'] ?? '';
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('auth', authString);
+        await prefs.setString('cardnumber', cardnumber);
+        await prefs.setString('session_cookies', sessionCookies);
+
+        final document = parse(opacResponse.body);
+        final patronIdElement = document.querySelector('[data-patron-id]');
+        if (patronIdElement != null) {
+          await prefs.setString('patron_id', patronIdElement.attributes['data-patron-id'] ?? '');
+        }
+
+        Navigator.pushReplacementNamed(context, '/home');
       } else {
         throw Exception('invalid_credentials'.tr());
       }
-    } catch (e) {
+    } on http.ClientException {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('login_failed'.tr(args: [e.toString()]))),
+        SnackBar(content: Text('network_error'.tr())),
       );
+    } catch (e) {
+      if (e.toString().contains('TimeoutException')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('timeout_error'.tr())),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('login_failed'.tr(args: [
+              e.toString().contains('invalid_credentials')
+                  ? 'Invalid credentials. Please verify your card number and password or try logging in via the library website.'
+                  : e.toString()
+            ])),
+          ),
+        );
+      }
     } finally {
+      client.close();
       setState(() => isLoading = false);
     }
   }
@@ -89,7 +269,7 @@ class _LoginScreenState extends State<LoginScreen> {
         MaterialPageRoute(
           builder: (_) => WebViewScreen(
             title: 'register_account'.tr(),
-            url: url.toString(),
+            url: 'https://library.al-burhaan.org/cgi-bin/koha/opac-memberentry.pl',
           ),
         ),
       );

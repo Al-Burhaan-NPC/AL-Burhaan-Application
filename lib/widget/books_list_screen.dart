@@ -9,8 +9,171 @@ import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/book_response.dart';
+import '../models/BookDetail.dart';
 import '../services/KohaApiService.dart';
-import 'BookDetailScreen.dart';
+
+// Bottom sheet class for displaying book details (unchanged)
+class BookDetailBottomSheet {
+  static Widget detailSection(String titleKey, String? content) {
+    if (content == null || content.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 2,
+            child: Text(
+              titleKey.tr(),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Text(
+              content,
+              style: const TextStyle(fontSize: 16),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static Future<void> _launchURL(String url, BuildContext context) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('could_not_open_link'.tr())),
+      );
+    }
+  }
+
+  static void showBookDetailsBottomSheet(BuildContext context, int biblioId) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.7,
+          minChildSize: 0.3,
+          maxChildSize: 0.9,
+          expand: false,
+          builder: (context, scrollController) {
+            return FutureBuilder<BookDetail>(
+              future: KohaApiService().fetchBookDetail(biblioId),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.done &&
+                    snapshot.hasData) {
+                  final book = snapshot.data!;
+                  return SingleChildScrollView(
+                    controller: scrollController,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 5,
+                          margin: const EdgeInsets.only(bottom: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[400],
+                            borderRadius: BorderRadius.circular(2.5),
+                          ),
+                        ),
+                        if (book.imageUrl != null)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(8.0, 8.0, 8.0, 20.0),
+                            child: Image.network(
+                              book.imageUrl!,
+                              width: MediaQuery.of(context).size.width,
+                              height: 200,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) =>
+                              const Center(child: Icon(Icons.image_not_supported, size: 100)),
+                            ),
+                          ),
+                        Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.blueAccent.withOpacity(0.6),
+                                blurRadius: 20,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          ),
+                          child: Card(
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  detailSection("title", book.title),
+                                  detailSection("author", book.author),
+                                  detailSection("isbn", book.isbn),
+                                  detailSection("publisher", book.publisher),
+                                  detailSection("publication_year", book.publicationYear),
+                                  detailSection("shelf_number", book.shelfNumber),
+                                  detailSection("call_number", book.callNumber),
+                                  detailSection("language", book.language),
+                                  detailSection("physical_description", book.physicalDescription),
+                                  detailSection("series", book.series),
+                                  detailSection("notes", book.notes),
+                                  if (book.ebookUrl != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 16.0),
+                                      child: ElevatedButton.icon(
+                                        onPressed: () => _launchURL(book.ebookUrl!, context),
+                                        icon: const Icon(Icons.open_in_new),
+                                        label: Text('read_ebook'.tr()),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.blueAccent,
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 24, vertical: 12),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                } else if (snapshot.hasError) {
+                  return Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text(
+                      'error'.tr() + ': ${snapshot.error}',
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  );
+                }
+                return const Center(child: CircularProgressIndicator());
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+}
 
 class BooksListScreen extends StatefulWidget {
   @override
@@ -187,9 +350,10 @@ class _BooksListScreenState extends State<BooksListScreen> {
 
   Future<void> _placeHold(BookResponse book) async {
     final prefs = await SharedPreferences.getInstance();
-    final cardnumber = prefs.getString('cardnumber') ?? '';
+    final auth = prefs.getString('auth') ?? ''; // Changed: Use stored auth instead of cardnumber/password
+    final patronId = prefs.getString('patron_id') ?? '74'; // Changed: Use stored patron_id (borrowernumber) with default 74
 
-    if (cardnumber.isEmpty) {
+    if (auth.isEmpty) {
       Fluttertoast.showToast(
         msg: tr('login_required_to_place_hold'),
         toastLength: Toast.LENGTH_SHORT,
@@ -217,7 +381,7 @@ class _BooksListScreenState extends State<BooksListScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(tr('confirm_hold_request')),
-        content: Text(tr('send_hold_email_confirmation', args: [book.title])),
+        content: Text(tr('place_hold_for', args: [book.title])),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -233,54 +397,75 @@ class _BooksListScreenState extends State<BooksListScreen> {
 
     if (confirmed != true) return;
 
-    final libraryEmail = 'library@al-burhaan.org'; // Change to our email.
-    final result = await _sendHoldEmail(
-      cardnumber: cardnumber,
-      book: book,
-      libraryEmail: libraryEmail,
-    );
+    setState(() => isLoading = true);
 
-    if (result) {
+    try {
+      final headers = {
+        'Authorization': 'Basic $auth', // Changed: Use stored auth for consistency
+        'x-koha-session': prefs.getString('session_token') ?? '', // Added: Include session token if available
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      };
+
+      // Changed: Updated pickup_library_id to 'ALBURHAAN' to match Al-Burhaan library
+      final body = json.encode({
+        'patron_id': patronId, // Changed: Use borrowernumber 74 instead of cardnumber
+        'biblio_id': book.biblioId,
+        'pickup_library_id': 'AlB', // Changed: Updated from 'MAIN' to 'ALBURHAAN'
+      });
+
+      final response = await http.post(
+        Uri.parse('https://library.al-burhaan.org/api/v1/holds'),
+        headers: headers,
+        body: body,
+      ).timeout(const Duration(seconds: 10));
+
+      setState(() => isLoading = false);
+
+      if (response.statusCode == 201) {
+        Fluttertoast.showToast(
+          msg: tr('hold_placed_successfully'),
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          backgroundColor: Colors.green,
+          textColor: Colors.white,
+          fontSize: 16.0,
+        );
+      } else {
+        String errorMsg = tr('failed_to_place_hold');
+        if (response.statusCode == 401) {
+          errorMsg = tr('authentication_failed');
+        } else if (response.statusCode == 400) {
+          errorMsg = tr('invalid_hold_request');
+        } else if (response.statusCode == 403) {
+          errorMsg = tr('no_permission_to_place_hold');
+        }
+
+        if (response.statusCode >= 500 || response.statusCode == 0) {
+          await _savePendingHold(book);
+          errorMsg = tr('hold_saved_offline');
+        }
+
+        Fluttertoast.showToast(
+          msg: '$errorMsg: ${response.statusCode} - ${response.body}', // Added: Include response body for debugging
+          toastLength: Toast.LENGTH_LONG,
+          gravity: ToastGravity.BOTTOM,
+          backgroundColor: Colors.red,
+          textColor: Colors.white,
+          fontSize: 16.0,
+        );
+      }
+    } catch (e) {
+      setState(() => isLoading = false);
       await _savePendingHold(book);
       Fluttertoast.showToast(
-        msg: tr('hold_email_sent'),
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.BOTTOM,
-        backgroundColor: Colors.green,
-        textColor: Colors.white,
-        fontSize: 16.0,
-      );
-    } else {
-      Fluttertoast.showToast(
-        msg: tr('failed_to_open_email'),
+        msg: tr('error_placing_hold', args: [e.toString()]),
         toastLength: Toast.LENGTH_LONG,
         gravity: ToastGravity.BOTTOM,
         backgroundColor: Colors.red,
         textColor: Colors.white,
         fontSize: 16.0,
       );
-    }
-  }
-
-  Future<bool> _sendHoldEmail({
-    required String cardnumber,
-    required BookResponse book,
-    required String libraryEmail,
-  }) async {
-    try {
-      final subject = Uri.encodeComponent('Hold Request for Book: ${book.title}');
-      final body = Uri.encodeComponent('''
-Hold Request Details:
-Patron Card Number: $cardnumber
-Book Title: ${book.title}
-Author: ${book.author ?? 'Unknown'}
-Biblio ID: ${book.biblioId}
-Please process this hold request for the patron.
-''');
-      final mailtoUri = Uri.parse('mailto:$libraryEmail?subject=$subject&body=$body');
-      return await launchUrl(mailtoUri, mode: LaunchMode.externalApplication);
-    } catch (e) {
-      return false;
     }
   }
 
@@ -534,12 +719,7 @@ Please process this hold request for the patron.
                                 ],
                               ),
                               onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => BookDetailScreen(biblioId: book.biblioId),
-                                  ),
-                                );
+                                BookDetailBottomSheet.showBookDetailsBottomSheet(context, book.biblioId);
                               },
                             ),
                           ),
@@ -608,10 +788,10 @@ class _HoldsScreenState extends State<HoldsScreen> {
 
   Future<void> _fetchHolds() async {
     final prefs = await SharedPreferences.getInstance();
-    final cardnumber = prefs.getString('cardnumber') ?? '';
-    final password = prefs.getString('password') ?? '';
+    final auth = prefs.getString('auth') ?? ''; // Changed: Use stored auth instead of cardnumber/password
+    final patronId = prefs.getString('patron_id') ?? '74'; // Changed: Use stored patron_id (borrowernumber) with default 74
 
-    if (cardnumber.isEmpty || password.isEmpty) {
+    if (auth.isEmpty) {
       Fluttertoast.showToast(
         msg: tr('login_required_to_view_holds'),
         toastLength: Toast.LENGTH_SHORT,
@@ -624,16 +804,18 @@ class _HoldsScreenState extends State<HoldsScreen> {
       return;
     }
 
-    final String basicAuth = base64Encode(utf8.encode('$cardnumber:$password'));
-
-    final holdsUrl = Uri.parse('https://library.al-burhaan.org/api/v1/patrons/$cardnumber/holds');
     final headers = {
-      'Authorization': 'Basic $basicAuth',
+      'Authorization': 'Basic $auth', // Changed: Use stored auth for consistency
+      'x-koha-session': prefs.getString('session_token') ?? '', // Added: Include session token if available
       'Accept': 'application/json',
     };
 
+    // Changed: Use patron_id (borrowernumber) instead of cardnumber in URL
+    final holdsUrl = Uri.parse('https://library.al-burhaan.org/api/v1/patrons/$patronId/holds');
+
     try {
-      final response = await http.get(holdsUrl, headers: headers);
+      final response = await http.get(holdsUrl, headers: headers).timeout(const Duration(seconds: 10));
+      print('Holds Fetch Response: ${response.statusCode} - ${response.body}'); // Added: Debug log for response
       if (response.statusCode == 200) {
         setState(() {
           holds = jsonDecode(response.body);
@@ -641,10 +823,10 @@ class _HoldsScreenState extends State<HoldsScreen> {
         });
       } else {
         Fluttertoast.showToast(
-          msg: tr('viewing_holds'),
-          toastLength: Toast.LENGTH_SHORT,
+          msg: '${tr('error_fetching_holds')}: ${response.statusCode} - ${response.body}', // Changed: Include status and body for debugging
+          toastLength: Toast.LENGTH_LONG,
           gravity: ToastGravity.BOTTOM,
-          backgroundColor: Colors.green,
+          backgroundColor: Colors.red,
           textColor: Colors.white,
           fontSize: 16.0,
         );
@@ -665,17 +847,27 @@ class _HoldsScreenState extends State<HoldsScreen> {
 
   Future<void> _cancelHold(int holdId) async {
     final prefs = await SharedPreferences.getInstance();
-    final cardnumber = prefs.getString('cardnumber') ?? '';
-    final password = prefs.getString('password') ?? '';
+    final auth = prefs.getString('auth') ?? ''; // Changed: Use stored auth
 
-    final String basicAuth = base64Encode(utf8.encode('$cardnumber:$password'));
+    if (auth.isEmpty) {
+      Fluttertoast.showToast(
+        msg: tr('login_required_to_cancel_hold'),
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: Colors.red,
+        textColor: Colors.white,
+        fontSize: 16.0,
+      );
+      return;
+    }
 
-    final cancelUrl = Uri.parse('https://library.al-burhaan.org/api/v1/holds/$holdId');
     final headers = {
-      'Authorization': 'Basic $basicAuth',
+      'Authorization': 'Basic $auth', // Changed: Use stored auth
+      'x-koha-session': prefs.getString('session_token') ?? '', // Added: Include session token
       'Accept': 'application/json',
     };
 
+    final cancelUrl = Uri.parse('https://library.al-burhaan.org/api/v1/holds/$holdId');
     try {
       final response = await http.delete(cancelUrl, headers: headers);
       if (response.statusCode == 204) {
@@ -690,7 +882,7 @@ class _HoldsScreenState extends State<HoldsScreen> {
         await _fetchHolds();
       } else {
         Fluttertoast.showToast(
-          msg: tr('failed_to_cancel_hold'),
+          msg: '${tr('failed_to_cancel_hold')}: ${response.statusCode} - ${response.body}', // Changed: Include status and body
           toastLength: Toast.LENGTH_SHORT,
           gravity: ToastGravity.BOTTOM,
           backgroundColor: Colors.red,
@@ -733,16 +925,13 @@ class _HoldsScreenState extends State<HoldsScreen> {
   Widget build(BuildContext context) {
     final allHolds = [
       ...pendingHolds.map((hold) => {
-        'biblio': {
-          'title': hold['title'],
-          'author': hold['author'],
-        },
-        'status': tr('pending_email'),
-        'pickup_library_id': 'MAIN',
         'biblioId': hold['biblioId'],
         'isPending': true,
       }),
-      ...holds,
+      ...holds.map((hold) => {
+        'biblioId': hold['biblio_id'] ?? hold['biblioId'], // Handle possible key variations
+        'hold_id': hold['hold_id'],
+      }),
     ];
 
     return Scaffold(
@@ -761,26 +950,102 @@ class _HoldsScreenState extends State<HoldsScreen> {
         itemBuilder: (context, index) {
           final hold = allHolds[index];
           final isPending = hold['isPending'] == true;
-          return Card(
-            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            child: ListTile(
-              title: Text(hold['biblio']['title'] ?? 'Unknown Title'),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(hold['biblio']['author'] ?? 'Unknown Author'),
-                  Text('Status: ${hold['status'] ?? 'Pending'}'),
-                  Text('Pickup Library: ${hold['pickup_library_id'] ?? 'MAIN'}'),
-                ],
-              ),
-              trailing: IconButton(
-                icon: const Icon(Icons.cancel),
-                tooltip: tr(isPending ? 'cancel_pending_hold' : 'cancel_hold'),
-                onPressed: () => isPending
-                    ? _cancelPendingHold(hold['biblioId'].toString())
-                    : _cancelHold(hold['hold_id']),
-              ),
-            ),
+          final biblioId = hold['biblioId'] as int;
+
+          return FutureBuilder<BookDetail>(
+            future: KohaApiService().fetchBookDetail(biblioId),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {
+                final book = snapshot.data!;
+                final currentStatus = isPending ? tr('pending_email') : (hold['status'] ?? 'Pending');
+                final isFavorite = false; // Placeholder; adjust if favorites should persist for holds
+
+                return TweenAnimationBuilder(
+                  tween: Tween<double>(begin: 0, end: 1),
+                  duration: const Duration(milliseconds: 500),
+                  builder: (context, value, child) {
+                    return Opacity(
+                      opacity: value,
+                      child: Transform.translate(
+                        offset: Offset(0, 20 * (1 - value)),
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    child: Card(
+                      elevation: 3,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.all(12),
+                        leading: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: CachedNetworkImage(
+                            imageUrl: book.imageUrl ?? '',
+                            placeholder: (context, url) => SizedBox(
+                              width: 80.0,
+                              height: 80.0,
+                              child: const Center(child: CircularProgressIndicator()),
+                            ),
+                            errorWidget: (context, url, error) =>
+                            const Icon(Icons.broken_image, size: 80.0),
+                            width: 80.0,
+                            height: 80.0,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                        title: Text(book.title, style: const TextStyle(fontWeight: FontWeight.w600)),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(book.author ?? 'Unknown Author'),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                Container(
+                                  width: 10,
+                                  height: 10,
+                                  margin: const EdgeInsets.only(right: 6),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: isPending ? Colors.grey : Colors.green,
+                                  ),
+                                ),
+                                Text(
+                                  currentStatus,
+                                  style: const TextStyle(fontSize: 13),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        trailing: Wrap(
+                          spacing: 8,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.cancel),
+                              tooltip: tr(isPending ? 'cancel_pending_hold' : 'cancel_hold'),
+                              onPressed: () => isPending
+                                  ? _cancelPendingHold(biblioId.toString())
+                                  : _cancelHold(hold['hold_id']),
+                            ),
+                          ],
+                        ),
+                        onTap: () {
+                          BookDetailBottomSheet.showBookDetailsBottomSheet(context, biblioId);
+                        },
+                      ),
+                    ),
+                  ),
+                );
+              } else {
+                return const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+            },
           );
         },
       ),

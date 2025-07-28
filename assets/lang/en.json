@@ -99,6 +99,13 @@
   "favorite_books": "Favorite Books",
   "added_to_favorites": "Added to Favorites!",
   "removed_from_favorites": "Removed from Favorites!",
-  "no_books_found": "No Books Found"
-
+  "place_hold_for": "Would you like to place a hold on this book?",
+  "hold_placed_successfully": "Hold placed successfully!",
+  "failed_to_place_hold": "Failed to place hold",
+  "authentication_failed": "Authentication failed. Please log in again.",
+  "invalid_hold_request": "Invalid hold request. Check book or patron details.",
+  "no_permission_to_place_hold": "You do not have permission to place a hold.",
+  "hold_saved_offline": "Hold saved locally. Please try again later.",
+  "error_placing_hold": "Error placing hold",
+  "login_required_to_view_holds": "Login required to view holds"
 }

@@ -1,15 +1,25 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/book_response.dart';
-import 'package:alburhaan/models/BookDetail.dart';
+import '../models/BookDetail.dart';
 
 class KohaApiService {
   final String baseUrl = "https://library.al-burhaan.org/api/v1/";
-  final String username = 'AlburhaanApp.App';
-  final String password = 'Alburhaan1';
+  final String fallbackUsername = 'AlburhaanApp.App';
+  final String fallbackPassword = 'Alburhaan1';
+
+  Future<String> _getAuthHeader() async {
+    final prefs = await SharedPreferences.getInstance();
+    final auth = prefs.getString('auth');
+    if (auth != null) {
+      return 'Basic $auth';
+    }
+    return 'Basic ${base64Encode(utf8.encode('$fallbackUsername:$fallbackPassword'))}';
+  }
 
   Future<List<BookResponse>> fetchBooks(int page, {String? query}) async {
-    String basicAuth = 'Basic ' + base64Encode(utf8.encode('$username:$password'));
+    final basicAuth = await _getAuthHeader();
     String url = "${baseUrl}biblios?_page=$page&_per_page=10";
     if (query != null && query.isNotEmpty) {
       var queryJson = jsonEncode({"title": {"-like": "%$query%"}});
@@ -33,7 +43,7 @@ class KohaApiService {
   }
 
   Future<BookDetail> fetchBookDetail(int biblioId) async {
-    String basicAuth = 'Basic ' + base64Encode(utf8.encode('$username:$password'));
+    final basicAuth = await _getAuthHeader();
     String url = "$baseUrl/biblios/$biblioId";
 
     var response = await http.get(Uri.parse(url), headers: {
