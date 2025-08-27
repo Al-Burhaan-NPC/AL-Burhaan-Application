@@ -11,6 +11,7 @@ import 'profile_page.dart';
 import 'login_screen.dart';
 import 'splash_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'dart:async';
 
 // Bottom sheet class for displaying book details
 class BookDetailBottomSheet {
@@ -46,7 +47,42 @@ class BookDetailBottomSheet {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('could_not_open_link'.tr())),
+        SnackBar(
+          content: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: [
+                BoxShadow(
+                  color: Theme.of(context).colorScheme.shadow,
+                  offset: Offset(4, 4),
+                  blurRadius: 8,
+                  spreadRadius: 1,
+                ),
+                BoxShadow(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.grey.shade700
+                      : Colors.grey.shade200,
+                  offset: Offset(-4, -4),
+                  blurRadius: 8,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+            child: Text(
+              'could_not_open_link'.tr(),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+            ),
+          ),
+          duration: Duration(seconds: 2),
+          backgroundColor: Colors.transparent,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          elevation: 0,
+        ),
       );
     }
   }
@@ -71,48 +107,54 @@ class BookDetailBottomSheet {
                 if (snapshot.connectionState == ConnectionState.done &&
                     snapshot.hasData) {
                   final book = snapshot.data!;
-                  return SingleChildScrollView(
-                    controller: scrollController,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 5,
-                          margin: const EdgeInsets.only(bottom: 10),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[400],
-                            borderRadius: BorderRadius.circular(2.5),
-                          ),
-                        ),
-                        if (book.imageUrl != null)
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(8.0, 8.0, 8.0, 20.0),
-                            child: Image.network(
-                              book.imageUrl!,
-                              width: MediaQuery.of(context).size.width,
-                              height: 200,
-                              fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) =>
-                              const Center(child: Icon(Icons.image_not_supported, size: 100)),
+                  final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+                  return Container(
+                    color: Theme.of(context).canvasColor,
+                    child: SingleChildScrollView(
+                      controller: scrollController,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 5,
+                            margin: const EdgeInsets.only(bottom: 10),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[400],
+                              borderRadius: BorderRadius.circular(2.5),
                             ),
                           ),
-                        Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.blueAccent.withOpacity(0.6),
-                                blurRadius: 20,
-                                spreadRadius: 2,
+                          if (book.imageUrl != null)
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(8.0, 8.0, 8.0, 20.0),
+                              child: Image.network(
+                                book.imageUrl!,
+                                width: MediaQuery.of(context).size.width,
+                                height: 200,
+                                fit: BoxFit.contain,
+                                errorBuilder: (context, error, stackTrace) =>
+                                const Center(child: Icon(Icons.image_not_supported, size: 100)),
                               ),
-                            ],
-                          ),
-                          child: Card(
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(
+                            ),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.surface,
                               borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Theme.of(context).colorScheme.shadow,
+                                  offset: Offset(4, 4),
+                                  blurRadius: 8,
+                                  spreadRadius: 1,
+                                ),
+                                BoxShadow(
+                                  color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade200,
+                                  offset: Offset(-4, -4),
+                                  blurRadius: 8,
+                                  spreadRadius: 1,
+                                ),
+                              ],
                             ),
                             child: Padding(
                               padding: const EdgeInsets.all(16.0),
@@ -152,8 +194,8 @@ class BookDetailBottomSheet {
                               ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   );
                 } else if (snapshot.hasError) {
@@ -193,12 +235,13 @@ class _PublicHomePageState extends State<PublicHomePage> {
     SettingsPage(),
   ];
 
-  List<String> get _titles => [
-    "dashboard".tr(),
-    "",
-    "profile".tr(),
-    "settings".tr(),
-  ];
+  List<String> get _titles =>
+      [
+        "dashboard".tr(),
+        "",
+        "profile".tr(),
+        "settings".tr(),
+      ];
 
   @override
   void initState() {
@@ -244,30 +287,52 @@ class _PublicHomePageState extends State<PublicHomePage> {
         children: _screens,
         physics: const BouncingScrollPhysics(),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: _onTabTapped,
-        selectedItemColor: Colors.blueAccent,
-        unselectedItemColor: Colors.grey,
-        showUnselectedLabels: true,
-        items: [
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.home),
-            label: 'home'.tr(),
+      extendBody: true,
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+        child: Container(
+          decoration: ShapeDecoration(
+            color: Colors.grey.shade900.withOpacity(0.8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(50),
+            ),
+            shadows: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.2),
+                blurRadius: 8,
+                offset: Offset(0, 4),
+              ),
+            ],
           ),
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.menu_book),
-            label: 'books'.tr(),
+          child: BottomNavigationBar(
+            currentIndex: _selectedIndex,
+            onTap: _onTabTapped,
+            selectedItemColor: Colors.blueAccent,
+            unselectedItemColor: Colors.grey,
+            showUnselectedLabels: false,
+            type: BottomNavigationBarType.fixed,
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            items: [
+              BottomNavigationBarItem(
+                icon: Icon(Icons.home_filled, size: 30),
+                label: 'Home',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.book_rounded, size: 30),
+                label: 'Books',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.person_rounded, size: 30),
+                label: 'Profile',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.settings_rounded, size: 30),
+                label: 'Settings',
+              ),
+            ],
           ),
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.person),
-            label: 'profile'.tr(),
-          ),
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.settings),
-            label: 'settings'.tr(),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -291,6 +356,7 @@ class _LibraryDashboardState extends State<_LibraryDashboard>
   late AnimationController _controller;
   late Animation<Offset> _slideAnimation;
   late Animation<double> _fadeAnimation;
+  late Animation<double> _logoAnimation;
 
   @override
   void initState() {
@@ -312,6 +378,11 @@ class _LibraryDashboardState extends State<_LibraryDashboard>
       begin: 0,
       end: 1,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
+
+    _logoAnimation = Tween<double>(
+      begin: 0.8,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
     _controller.forward();
   }
@@ -346,48 +417,100 @@ class _LibraryDashboardState extends State<_LibraryDashboard>
     } catch (e) {
       setState(() => isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('failed_load_dashboard'.tr(args: [e.toString()]))),
+        SnackBar(
+          content: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: [
+                BoxShadow(
+                  color: Theme.of(context).colorScheme.shadow,
+                  offset: Offset(4, 4),
+                  blurRadius: 8,
+                  spreadRadius: 1,
+                ),
+                BoxShadow(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.grey.shade700
+                      : Colors.grey.shade200,
+                  offset: Offset(-4, -4),
+                  blurRadius: 8,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+            child: Text(
+              'failed_load_dashboard'.tr(args: [e.toString()]),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+            ),
+          ),
+          duration: Duration(seconds: 2),
+          backgroundColor: Colors.transparent,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          elevation: 0,
+        ),
       );
     }
   }
 
   Widget _buildAnimatedTile(String text, IconData icon, VoidCallback onTap) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return SlideTransition(
       position: _slideAnimation,
       child: AnimatedOpacity(
         opacity: 1,
         duration: const Duration(milliseconds: 600),
         child: GestureDetector(
-          onTap: onTap,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 800),
-            curve: Curves.easeInOut,
-            width: 160,
-            height: 160,
-            margin: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade900,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.blueAccent.withOpacity(0.6),
-                  blurRadius: 12,
-                  spreadRadius: 2,
-                  offset: const Offset(0, 0),
-                ),
-              ],
+          onTapDown: (_) => _controller.forward(),
+          onTapUp: (_) {
+            _controller.reverse();
+            onTap();
+          },
+          onTapCancel: () => _controller.reverse(),
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 1.0, end: 0.95).animate(
+              CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, color: Colors.white, size: 32),
-                const SizedBox(height: 8),
-                Text(
-                  text,
-                  style: const TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.bold),
-                ).tr(),
-              ],
+            child: Container(
+              width: 160,
+              height: 160,
+              margin: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Theme.of(context).colorScheme.shadow,
+                    offset: Offset(4, 4),
+                    blurRadius: 8,
+                    spreadRadius: 1,
+                  ),
+                  BoxShadow(
+                    color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade200,
+                    offset: Offset(-4, -4),
+                    blurRadius: 8,
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, color: Theme.of(context).iconTheme.color, size: 32),
+                  const SizedBox(height: 8),
+                  Text(
+                    text,
+                    style: TextStyle(
+                      color: Theme.of(context).textTheme.bodyLarge?.color,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ).tr(),
+                ],
+              ),
             ),
           ),
         ),
@@ -397,74 +520,216 @@ class _LibraryDashboardState extends State<_LibraryDashboard>
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     if (isLoading) return const Center(child: CircularProgressIndicator());
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Wrap(
-            alignment: WrapAlignment.start,
-            children: [
-              _buildAnimatedTile('favorites'.tr(), Icons.favorite, () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => BookListPage(
-                      title: 'favorites'.tr(),
-                      books: favoriteBooks,
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Wrap(
+              alignment: WrapAlignment.start,
+              children: [
+                _buildAnimatedTile('favorites'.tr(), Icons.favorite, () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => BookListPage(
+                        title: 'favorites'.tr(),
+                        books: favoriteBooks,
+                      ),
                     ),
-                  ),
-                );
-              }),
-              _buildAnimatedTile('recommended'.tr(), Icons.thumb_up, () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => BookListPage(
-                      title: 'recommended'.tr(),
-                      books: allBooks,
+                  );
+                }),
+                _buildAnimatedTile('recommended'.tr(), Icons.thumb_up, () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => BookListPage(
+                        title: 'recommended'.tr(),
+                        books: allBooks,
+                      ),
                     ),
-                  ),
-                );
-              }),
-            ],
+                  );
+                }),
+                _buildAnimatedTile('new_arrivals'.tr(), Icons.new_releases, () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surface,
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Theme.of(context).colorScheme.shadow,
+                              offset: Offset(4, 4),
+                              blurRadius: 8,
+                              spreadRadius: 1,
+                            ),
+                            BoxShadow(
+                              color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade200,
+                              offset: Offset(-4, -4),
+                              blurRadius: 8,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          'coming_soon'.tr(),
+                          style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                        ),
+                      ),
+                      duration: Duration(seconds: 2),
+                      backgroundColor: Colors.transparent,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      elevation: 0,
+                    ),
+                  );
+                }),
+                _buildAnimatedTile('categories'.tr(), Icons.category, () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surface,
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Theme.of(context).colorScheme.shadow,
+                              offset: Offset(4, 4),
+                              blurRadius: 8,
+                              spreadRadius: 1,
+                            ),
+                            BoxShadow(
+                              color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade200,
+                              offset: Offset(-4, -4),
+                              blurRadius: 8,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          'coming_soon'.tr(),
+                          style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                        ),
+                      ),
+                      duration: Duration(seconds: 2),
+                      backgroundColor: Colors.transparent,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      elevation: 0,
+                    ),
+                  );
+                }),
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
 
-class BookListPage extends StatelessWidget {
+class BookListPage extends StatefulWidget {
   final String title;
   final List<BookResponse> books;
 
   const BookListPage({Key? key, required this.title, required this.books})
       : super(key: key);
 
+  @override
+  _BookListPageState createState() => _BookListPageState();
+}
+
+class _BookListPageState extends State<BookListPage> {
+  double _scaleAnimation = 1.0;
+
   Widget _buildBookItem(BuildContext context, BookResponse book) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(vertical: 4),
-      leading: ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: CachedNetworkImage(
-          imageUrl: book.imageUrl ?? '',
-          width: 50,
-          height: 70,
-          fit: BoxFit.cover,
-          placeholder: (context, url) =>
-          const Center(child: CircularProgressIndicator()),
-          errorWidget: (context, url, error) => const Icon(Icons.broken_image),
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: GestureDetector(
+        onTapDown: (_) {
+          setState(() => _scaleAnimation = 0.95);
+        },
+        onTapUp: (_) {
+          setState(() => _scaleAnimation = 1.0);
+          BookDetailBottomSheet.showBookDetailsBottomSheet(context, book.biblioId);
+        },
+        onTapCancel: () {
+          setState(() => _scaleAnimation = 1.0);
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          transform: Matrix4.identity()..scale(_scaleAnimation),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Theme.of(context).colorScheme.shadow,
+                  offset: Offset(4, 4),
+                  blurRadius: 8,
+                  spreadRadius: 1,
+                ),
+                BoxShadow(
+                  color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade200,
+                  offset: Offset(-4, -4),
+                  blurRadius: 8,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+            child: ListTile(
+              contentPadding: const EdgeInsets.all(12),
+              leading: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: CachedNetworkImage(
+                  imageUrl: book.imageUrl ?? '',
+                  width: 80,
+                  height: 80,
+                  fit: BoxFit.contain,
+                  placeholder: (context, url) => SizedBox(
+                    width: 80,
+                    height: 80,
+                    child: const Center(child: CircularProgressIndicator()),
+                  ),
+                  errorWidget: (context, url, error) => const SizedBox(
+                    width: 80,
+                    height: 80,
+                    child: Icon(Icons.broken_image, size: 80),
+                  ),
+                ),
+              ),
+              title: Text(
+                book.title,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                ),
+              ),
+              subtitle: Text(
+                book.author,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                ),
+              ),
+            ),
+          ),
         ),
       ),
-      title: Text(book.title),
-      subtitle: Text(book.author),
-      onTap: () {
-        // Show bottom sheet instead of navigating to BookDetailScreen
-        BookDetailBottomSheet.showBookDetailsBottomSheet(context, book.biblioId);
-      },
     );
   }
 
@@ -473,17 +738,17 @@ class BookListPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          title,
+          widget.title,
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
-      body: books.isEmpty
+      body: widget.books.isEmpty
           ? Center(child: Text('no_books_found'.tr()))
           : ListView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: books.length,
+        itemCount: widget.books.length,
         itemBuilder: (context, index) {
-          return _buildBookItem(context, books[index]);
+          return _buildBookItem(context, widget.books[index]);
         },
       ),
     );

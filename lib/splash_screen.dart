@@ -55,7 +55,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade900,
+      backgroundColor: Colors.black,
       body: Center(
         child: ScaleTransition(
           scale: _logoAnimation,

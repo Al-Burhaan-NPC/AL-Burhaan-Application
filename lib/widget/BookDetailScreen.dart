@@ -63,12 +63,12 @@ class BookDetailBottomSheet {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.black, // Changed to black
       builder: (context) {
         return DraggableScrollableSheet(
-          initialChildSize: 0.6, // Reduced initial height
+          initialChildSize: 0.6,
           minChildSize: 0.3,
-          maxChildSize: 0.8, // Reduced max height
+          maxChildSize: 0.8,
           expand: false,
           builder: (context, scrollController) {
             return FutureBuilder<BookDetail>(
@@ -79,6 +79,7 @@ class BookDetailBottomSheet {
                   final book = snapshot.data!;
                   return SingleChildScrollView(
                     controller: scrollController,
+                    physics: const ClampingScrollPhysics(), // Disable glow effect
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -104,7 +105,7 @@ class BookDetailBottomSheet {
                               child: Image.network(
                                 book.imageUrl!,
                                 width: double.infinity,
-                                height: 200, // Reduced image height
+                                height: 200,
                                 fit: BoxFit.contain,
                                 errorBuilder: (context, error, stackTrace) => Container(
                                   height: 200,

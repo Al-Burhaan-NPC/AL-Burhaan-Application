@@ -102,7 +102,24 @@
   "favorite_books": "پسندیدہ کتب",
   "added_to_favorites": "پسندیدہ میں شامل کر دیا گیا!",
   "removed_from_favorites": "پسندیدہ سے ہٹا دیا گیا!",
-  "no_books_found": "کوئی کتابیں نہیں ملیں"
+  "no_books_found": "کوئی کتابیں نہیں ملیں",
+  "place_hold_for": "کیا آپ اس کتاب پر ہول رکھنا چاہیں گے؟",
+  "hold_placed_successfully": "ہول کامیابی سے رکھ دیا گیا!",
+  "failed_to_place_hold": "ہول رکھنے میں ناکامی",
+  "authentication_failed": "تصدیق ناکام ہوگئی۔ براہ کرم دوبارہ لاگ ان کریں۔",
+  "invalid_hold_request": "غلط ہول درخواست۔ کتاب یا گاہک کی تفصیلات چیک کریں۔",
+  "no_permission_to_place_hold": "آپ کے پاس ہول رکھنے کی اجازت نہیں ہے۔",
+  "hold_saved_offline": "ہول مقامی طور پر محفوظ ہوگیا۔ براہ کرم بعد میں کوشش کریں۔",
+  "error_placing_hold": "ہول رکھنے میں خرابی",
+  "login_required_to_view_holds": "ہولز دیکھنے کے لیے لاگ ان کی ضرورت ہے",
+  "error_fetching_holds": "ہولز حاصل کرنے میں خرابی",
+  "error": "خرابی",
+  "hold_limit_reached": "ہول کی حد مکمل ہوگئی۔ زیادہ سے زیادہ 5 ہولز کی اجازت ہے۔",
+  "edit_profile": "پروفائل ترمیم کریں",
+  "edit_profile": "پروفائل ترمیم کریں",
+  "new_arrivals": "نئی آمد",
+  "categories": "زمرہ جات",
+  "coming_soon": "جلد آرہا ہے"
 }
 
 

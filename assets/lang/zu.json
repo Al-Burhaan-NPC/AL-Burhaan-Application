@@ -102,5 +102,21 @@
   "favorite_books": "Izincwadi Ozithandayo",
   "added_to_favorites": "Kungezwe Kokuthandwayo!",
   "removed_from_favorites": "Kususwe Kokuthandwayo!",
-  "no_books_found": "Azitholakalanga izincwadi"
+  "no_books_found": "Azitholakalanga izincwadi",
+  "place_hold_for": "Ngabe ufuna ukubeka indawo yokubamba kule ncwadi?",
+  "hold_placed_successfully": "Indawo yokubamba ibekwe ngempumelelo!",
+  "failed_to_place_hold": "Kwehlulekile ukubeka indawo yokubamba",
+  "authentication_failed": "Ukuqinisekisa kwehlulekile. Ngicela ungene futhi.",
+  "invalid_hold_request": "Isicelo sokubamba esingavumelekile. Hlola imininingwane yencwadi noma yekhasimende.",
+  "no_permission_to_place_hold": "Awunayo imvume yokubeka indawo yokubamba.",
+  "hold_saved_offline": "Indawo yokubamba igcinwe endaweni. Ngicela uzame kamuva.",
+  "error_placing_hold": "Iphutha lokubeka indawo yokubamba",
+  "login_required_to_view_holds": "Ukungena kuyadingeka ukuze ubone izindawo zokubamba",
+  "error_fetching_holds": "Iphutha ekutholeni izindawo zokubamba",
+  "error": "Iphutha",
+  "hold_limit_reached": "Umkhawulo wendawo yokubamba ufikiwe. Inani eliphezulu lama-5 livunyelwe.",
+  "edit_profile": "Hlela Iphrofayili",
+  "new_arrivals": "Okufika Okusha",
+  "categories": "Izigaba",
+  "coming_soon": "Kuzofika Maduze"
 }

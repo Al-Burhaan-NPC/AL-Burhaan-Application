@@ -102,6 +102,21 @@
   "favorite_books": "Gunsteling Boeke",
   "added_to_favorites": "By gunstelinge gevoeg!",
   "removed_from_favorites": "Uit gunstelinge verwyder!",
-  "no_books_found": "Geen boeke gevind nie"
-
+  "no_books_found": "Geen boeke gevind nie",
+  "place_hold_for": "Wil jy 'n hou op hierdie boek plaas?",
+  "hold_placed_successfully": "Hou suksesvol geplaas!",
+  "failed_to_place_hold": "Kon nie die hou plaas nie",
+  "authentication_failed": "Authentikasie het misluk. Meld asseblief weer aan.",
+  "invalid_hold_request": "Ongeldige hou-aanvraag. Kontroleer boek- of kliëntbesonderhede.",
+  "no_permission_to_place_hold": "Jy het nie toestemming om 'n hou te plaas nie.",
+  "hold_saved_offline": "Hou lokaal gestoor. Probeer later weer.",
+  "error_placing_hold": "Fout tydens die plasing van die hou",
+  "login_required_to_view_holds": "Aantekening vereis om houe te sien",
+  "error_fetching_holds": "Fout by die ophalen van houe",
+  "error": "Fout",
+  "hold_limit_reached": "Houe-limiet bereik. Maksimum 5 houe toegelaat.",
+  "edit_profile": "Wysig Profiel",
+  "new_arrivals": "Nuwe Aankomste",
+  "categories": "Kategorieë",
+  "coming_soon": "Binnenkort"
 }

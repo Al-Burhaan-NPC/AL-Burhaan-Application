@@ -102,5 +102,20 @@
   "favorite_books": "الكتب المفضلة",
   "added_to_favorites": "تمت الإضافة إلى المفضلة!",
   "removed_from_favorites": "تمت الإزالة من المفضلة!",
-  "no_books_found": "لم يتم العثور على كتب"
+  "no_books_found": "لم يتم العثور على كتب",
+  "place_hold_for": "هل ترغب في حجز هذا الكتاب؟",
+  "hold_placed_successfully": "تم الحجز بنجاح!",
+  "failed_to_place_hold": "فشل في الحجز",
+  "authentication_failed": "فشل المصادقة. يرجى تسجيل الدخول مرة أخرى.",
+  "invalid_hold_request": "طلب حجز غير صالح. تحقق من تفاصيل الكتاب أو العميل.",
+  "no_permission_to_place_hold": "ليس لديك إذن لحجز الكتاب.",
+  "hold_saved_offline": "تم حفظ الحجز محليًا. يرجى المحاولة لاحقًا.",
+  "error_placing_hold": "خطأ أثناء الحجز",
+  "login_required_to_view_holds": "تسجيل الدخول مطلوب لعرض الحجوزات",
+  "error_fetching_holds": "خطأ في جلب الحجوزات",
+  "error": "خطأ",
+  "hold_limit_reached": "تم الوصول إلى حد الحجوزات. الحد الأقصى 5 حجوزات مسموح بها.",
+  "new_arrivals": "الوافدون الجدد",
+  "categories": "الفئات",
+  "coming_soon": "قريبًا"
 }

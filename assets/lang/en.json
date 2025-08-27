@@ -107,5 +107,18 @@
   "no_permission_to_place_hold": "You do not have permission to place a hold.",
   "hold_saved_offline": "Hold saved locally. Please try again later.",
   "error_placing_hold": "Error placing hold",
-  "login_required_to_view_holds": "Login required to view holds"
+  "login_required_to_view_holds": "Login required to view holds",
+  "failed_to_place_hold": "Failed to place hold",
+  "authentication_failed": "Authentication failed. Please log in again.",
+  "no_permission_to_place_hold": "You do not have permission to place a hold.",
+  "hold_saved_offline": "Hold saved locally. Please try again later.",
+  "error_placing_hold": "Error placing hold",
+  "login_required_to_view_holds": "Login required to view holds",
+  "error_fetching_holds": "Error fetching holds",
+  "error": "Error",
+  "hold_limit_reached": "Hold limit reached. Maximum 5 holds allowed.",
+  "edit_profile": "Edit Profile",
+  "new_arrivals": "New Arrivals",
+  "categories": "Categories",
+  "coming_soon": "Coming Soon"
 }

@@ -12,7 +12,7 @@ import '../models/book_response.dart';
 import '../models/BookDetail.dart';
 import '../services/KohaApiService.dart';
 
-// Bottom sheet class for displaying book details (unchanged)
+// Bottom sheet class for displaying book details
 class BookDetailBottomSheet {
   static Widget detailSection(String titleKey, String? content) {
     if (content == null || content.isEmpty) return const SizedBox.shrink();
@@ -65,54 +65,60 @@ class BookDetailBottomSheet {
           maxChildSize: 0.9,
           expand: false,
           builder: (context, scrollController) {
-            return FutureBuilder<BookDetail>(
-              future: KohaApiService().fetchBookDetail(biblioId),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.done &&
-                    snapshot.hasData) {
-                  final book = snapshot.data!;
-                  return SingleChildScrollView(
-                    controller: scrollController,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 5,
-                          margin: const EdgeInsets.only(bottom: 10),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[400],
-                            borderRadius: BorderRadius.circular(2.5),
-                          ),
-                        ),
-                        if (book.imageUrl != null)
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(8.0, 8.0, 8.0, 20.0),
-                            child: Image.network(
-                              book.imageUrl!,
-                              width: MediaQuery.of(context).size.width,
-                              height: 200,
-                              fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) =>
-                              const Center(child: Icon(Icons.image_not_supported, size: 100)),
+            return Container(
+              color: Theme.of(context).canvasColor,
+              child: FutureBuilder<BookDetail>(
+                future: KohaApiService().fetchBookDetail(biblioId),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.done &&
+                      snapshot.hasData) {
+                    final book = snapshot.data!;
+                    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+                    return SingleChildScrollView(
+                      controller: scrollController,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 5,
+                            margin: const EdgeInsets.only(bottom: 10),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[400],
+                              borderRadius: BorderRadius.circular(2.5),
                             ),
                           ),
-                        Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.blueAccent.withOpacity(0.6),
-                                blurRadius: 20,
-                                spreadRadius: 2,
+                          if (book.imageUrl != null)
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(8.0, 8.0, 8.0, 20.0),
+                              child: Image.network(
+                                book.imageUrl!,
+                                width: MediaQuery.of(context).size.width,
+                                height: 200,
+                                fit: BoxFit.contain,
+                                errorBuilder: (context, error, stackTrace) =>
+                                const Center(child: Icon(Icons.image_not_supported, size: 100)),
                               ),
-                            ],
-                          ),
-                          child: Card(
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(
+                            ),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.surface,
                               borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Theme.of(context).colorScheme.shadow,
+                                  offset: Offset(4, 4),
+                                  blurRadius: 8,
+                                  spreadRadius: 1,
+                                ),
+                                BoxShadow(
+                                  color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade200,
+                                  offset: Offset(-4, -4),
+                                  blurRadius: 8,
+                                  spreadRadius: 1,
+                                ),
+                              ],
                             ),
                             child: Padding(
                               padding: const EdgeInsets.all(16.0),
@@ -152,21 +158,21 @@ class BookDetailBottomSheet {
                               ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  );
-                } else if (snapshot.hasError) {
-                  return Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Text(
-                      'error'.tr() + ': ${snapshot.error}',
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                  );
-                }
-                return const Center(child: CircularProgressIndicator());
-              },
+                        ],
+                      ),
+                    );
+                  } else if (snapshot.hasError) {
+                    return Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Text(
+                        'error'.tr() + ': ${snapshot.error}',
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                    );
+                  }
+                  return const Center(child: CircularProgressIndicator());
+                },
+              ),
             );
           },
         );
@@ -251,26 +257,28 @@ class _BooksListScreenState extends State<BooksListScreen> {
     });
   }
 
-  void _fetchBooks({bool reset = false, String? query}) {
-    if (reset) {
-      books.clear();
-      currentPage = 1;
-      currentQuery = query ?? '';
-    }
+  Future<void> _fetchBooks({bool reset = false, String? query}) {
+    return Future(() async {
+      if (reset) {
+        books.clear();
+        currentPage = 1;
+        currentQuery = query ?? '';
+      }
 
-    setState(() => isLoading = true);
+      setState(() => isLoading = true);
 
-    KohaApiService().fetchBooks(currentPage, query: currentQuery).then((newBooks) {
-      setState(() {
-        books.addAll(newBooks);
-        isLoading = false;
-        if (newBooks.isNotEmpty) currentPage++;
+      KohaApiService().fetchBooks(currentPage, query: currentQuery).then((newBooks) {
+        setState(() {
+          books.addAll(newBooks);
+          isLoading = false;
+          if (newBooks.isNotEmpty) currentPage++;
+        });
+      }).catchError((error) {
+        setState(() => isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('error_fetching_books'.tr(args: [error.toString()]))),
+        );
       });
-    }).catchError((error) {
-      setState(() => isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('error_fetching_books'.tr(args: [error.toString()]))),
-      );
     });
   }
 
@@ -350,13 +358,38 @@ class _BooksListScreenState extends State<BooksListScreen> {
 
   Future<void> _placeHold(BookResponse book) async {
     final prefs = await SharedPreferences.getInstance();
-    final auth = prefs.getString('auth') ?? ''; // Changed: Use stored auth instead of cardnumber/password
-    final patronId = prefs.getString('patron_id') ?? '74'; // Changed: Use stored patron_id (borrowernumber) with default 74
+    final auth = prefs.getString('auth') ?? '';
+    final patronId = prefs.getString('patron_id') ?? '74';
 
     if (auth.isEmpty) {
       Fluttertoast.showToast(
         msg: tr('login_required_to_place_hold'),
         toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        backgroundColor: Colors.red,
+        textColor: Colors.white,
+        fontSize: 16.0,
+      );
+      return;
+    }
+
+    final headers = {
+      'Authorization': 'Basic $auth',
+      'x-koha-session': prefs.getString('session_token') ?? '',
+      'Accept': 'application/json',
+    };
+    final holdsUrl = Uri.parse('https://library.al-burhaan.org/api/v1/patrons/$patronId/holds');
+    final response = await http.get(holdsUrl, headers: headers).timeout(const Duration(seconds: 10));
+    List<dynamic> currentHolds = [];
+    if (response.statusCode == 200) {
+      currentHolds = jsonDecode(response.body);
+    }
+
+    final currentHoldsCount = currentHolds.length + (prefs.getStringList('pendingHolds')?.length ?? 0);
+    if (currentHoldsCount >= 5) {
+      Fluttertoast.showToast(
+        msg: tr('hold_limit_reached', args: ['5']),
+        toastLength: Toast.LENGTH_LONG,
         gravity: ToastGravity.BOTTOM,
         backgroundColor: Colors.red,
         textColor: Colors.white,
@@ -401,17 +434,18 @@ class _BooksListScreenState extends State<BooksListScreen> {
 
     try {
       final headers = {
-        'Authorization': 'Basic $auth', // Changed: Use stored auth for consistency
-        'x-koha-session': prefs.getString('session_token') ?? '', // Added: Include session token if available
+        'Authorization': 'Basic $auth',
+        'x-koha-session': prefs.getString('session_token') ?? '',
         'Accept': 'application/json',
         'Content-Type': 'application/json',
       };
 
-      // Changed: Updated pickup_library_id to 'ALBURHAAN' to match Al-Burhaan library
+      final expiryDate = DateTime.now().add(const Duration(days: 3)).toIso8601String().split('T')[0];
       final body = json.encode({
-        'patron_id': patronId, // Changed: Use borrowernumber 74 instead of cardnumber
+        'patron_id': patronId,
         'biblio_id': book.biblioId,
-        'pickup_library_id': 'AlB', // Changed: Updated from 'MAIN' to 'ALBURHAAN'
+        'pickup_library_id': 'AlB',
+        'expiration_date': expiryDate,
       });
 
       final response = await http.post(
@@ -447,7 +481,7 @@ class _BooksListScreenState extends State<BooksListScreen> {
         }
 
         Fluttertoast.showToast(
-          msg: '$errorMsg: ${response.statusCode} - ${response.body}', // Added: Include response body for debugging
+          msg: '$errorMsg: ${response.statusCode} - ${response.body}',
           toastLength: Toast.LENGTH_LONG,
           gravity: ToastGravity.BOTTOM,
           backgroundColor: Colors.red,
@@ -553,6 +587,7 @@ class _BooksListScreenState extends State<BooksListScreen> {
   @override
   Widget build(BuildContext context) {
     const double imageSize = 80.0;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
@@ -593,26 +628,43 @@ class _BooksListScreenState extends State<BooksListScreen> {
                 child: Material(
                   elevation: 2,
                   borderRadius: BorderRadius.circular(12),
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: 'search_for_books'.tr(),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      border: InputBorder.none,
-                      suffixIcon: _searchController.text.isNotEmpty
-                          ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                          _fetchBooks(reset: true);
-                        },
-                      )
-                          : const Icon(Icons.search),
+                  color: Theme.of(context).colorScheme.surface,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    transform: Matrix4.identity()..scale(_searchController.text.isEmpty ? 1.0 : 1.02),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isDarkMode ? Colors.grey.shade600 : Colors.grey.shade300,
+                        width: 1,
+                      ),
                     ),
-                    textInputAction: TextInputAction.search,
-                    onSubmitted: (value) {
-                      _fetchBooks(reset: true, query: value.trim());
-                    },
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText: 'search_for_books'.tr(),
+                        hintStyle: TextStyle(
+                          color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.6),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                        border: InputBorder.none,
+                        prefixIcon: Icon(Icons.search, color:Colors.blueAccent),
+                        suffixIcon: _searchController.text.isNotEmpty
+                            ? IconButton(
+                          icon: Icon(Icons.clear, color: Colors.blueAccent),
+                          onPressed: () {
+                            _searchController.clear();
+                            _fetchBooks(reset: true);
+                          },
+                        )
+                            : null,
+                      ),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                      textInputAction: TextInputAction.search,
+                      onSubmitted: (value) {
+                        _fetchBooks(reset: true, query: value.trim());
+                      },
+                    ),
                   ),
                 ),
               ),
@@ -645,82 +697,132 @@ class _BooksListScreenState extends State<BooksListScreen> {
                         },
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          child: Card(
-                            elevation: 3,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            child: ListTile(
-                              contentPadding: const EdgeInsets.all(12),
-                              leading: ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: CachedNetworkImage(
-                                  imageUrl: book.imageUrl ?? '',
-                                  placeholder: (context, url) => SizedBox(
-                                    width: imageSize,
-                                    height: imageSize,
-                                    child: const Center(child: CircularProgressIndicator()),
+                          child: GestureDetector(
+                            onTapDown: (_) {
+                              setState(() => _scaleAnimation = 0.95);
+                            },
+                            onTapUp: (_) {
+                              setState(() => _scaleAnimation = 1.0);
+                              BookDetailBottomSheet.showBookDetailsBottomSheet(context, book.biblioId);
+                            },
+                            onTapCancel: () {
+                              setState(() => _scaleAnimation = 1.0);
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              transform: Matrix4.identity()..scale(_scaleAnimation),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.surface,
+                                  borderRadius: BorderRadius.circular(12),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Theme.of(context).colorScheme.shadow,
+                                      offset: Offset(4, 4),
+                                      blurRadius: 8,
+                                      spreadRadius: 1,
+                                    ),
+                                    BoxShadow(
+                                      color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade200,
+                                      offset: Offset(-4, -4),
+                                      blurRadius: 8,
+                                      spreadRadius: 1,
+                                    ),
+                                  ],
+                                ),
+                                child: ListTile(
+                                  contentPadding: const EdgeInsets.all(12),
+                                  leading: ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: CachedNetworkImage(
+                                      imageUrl: book.imageUrl ?? '',
+                                      placeholder: (context, url) => SizedBox(
+                                        width: imageSize,
+                                        height: imageSize,
+                                        child: const Center(child: CircularProgressIndicator()),
+                                      ),
+                                      errorWidget: (context, url, error) =>
+                                      const Icon(Icons.broken_image, size: imageSize),
+                                      width: imageSize,
+                                      height: imageSize,
+                                      fit: BoxFit.contain,
+                                    ),
                                   ),
-                                  errorWidget: (context, url, error) =>
-                                  const Icon(Icons.broken_image, size: imageSize),
-                                  width: imageSize,
-                                  height: imageSize,
-                                  fit: BoxFit.contain,
+                                  title: Text(
+                                    book.title,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: Theme.of(context).textTheme.bodyLarge?.color,
+                                    ),
+                                  ),
+                                  subtitle: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        book.author,
+                                        style: TextStyle(
+                                          color: Theme.of(context).textTheme.bodyMedium?.color,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      GestureDetector(
+                                        onTap: () => _showReadingStatusSheet(book.biblioId.toString()),
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              width: 10,
+                                              height: 10,
+                                              margin: const EdgeInsets.only(right: 6),
+                                              decoration: BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                color: statusColors[currentStatus] ?? Colors.grey,
+                                              ),
+                                            ),
+                                            Text(
+                                              currentStatus == 'None' ? 'no_status_set'.tr() : currentStatus,
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                color: Theme.of(context).textTheme.bodyMedium?.color,
+                                              ),
+                                            ),
+                                            Icon(
+                                              Icons.arrow_drop_down,
+                                              color: Theme.of(context).iconTheme.color,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  trailing: Wrap(
+                                    spacing: 8,
+                                    children: [
+                                      IconButton(
+                                        icon: Icon(
+                                          isFavorite ? Icons.favorite : Icons.favorite_border,
+                                          color: isFavorite ? Colors.blueAccent : Theme.of(context).iconTheme.color,
+                                        ),
+                                        onPressed: () => _toggleFavorite(book.biblioId),
+                                      ),
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.bookmark_add,
+                                          color: Theme.of(context).iconTheme.color,
+                                        ),
+                                        tooltip: tr('place_hold'),
+                                        onPressed: () {
+                                          if (book.biblioId != null) {
+                                            _placeHold(book);
+                                          } else {
+                                            Fluttertoast.showToast(msg: tr('no_biblio_id_available'));
+                                          }
+                                        },
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
-                              title: Text(book.title, style: const TextStyle(fontWeight: FontWeight.w600)),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(book.author),
-                                  const SizedBox(height: 6),
-                                  GestureDetector(
-                                    onTap: () => _showReadingStatusSheet(book.biblioId.toString()),
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          width: 10,
-                                          height: 10,
-                                          margin: const EdgeInsets.only(right: 6),
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            color: statusColors[currentStatus] ?? Colors.grey,
-                                          ),
-                                        ),
-                                        Text(
-                                          currentStatus == 'None' ? 'no_status_set'.tr() : currentStatus,
-                                          style: const TextStyle(fontSize: 13),
-                                        ),
-                                        const Icon(Icons.arrow_drop_down),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              trailing: Wrap(
-                                spacing: 8,
-                                children: [
-                                  IconButton(
-                                    icon: Icon(
-                                      isFavorite ? Icons.favorite : Icons.favorite_border,
-                                      color: isFavorite ? Colors.blueAccent : null,
-                                    ),
-                                    onPressed: () => _toggleFavorite(book.biblioId),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.bookmark_add),
-                                    tooltip: tr('place_hold'),
-                                    onPressed: () {
-                                      if (book.biblioId != null) {
-                                        _placeHold(book);
-                                      } else {
-                                        Fluttertoast.showToast(msg: tr('no_biblio_id_available'));
-                                      }
-                                    },
-                                  ),
-                                ],
-                              ),
-                              onTap: () {
-                                BookDetailBottomSheet.showBookDetailsBottomSheet(context, book.biblioId);
-                              },
                             ),
                           ),
                         ),
@@ -732,7 +834,7 @@ class _BooksListScreenState extends State<BooksListScreen> {
             ],
           ),
           Positioned(
-            bottom: 20,
+            bottom: 85,
             right: 20,
             child: AnimatedOpacity(
               duration: const Duration(milliseconds: 300),
@@ -755,6 +857,8 @@ class _BooksListScreenState extends State<BooksListScreen> {
       ),
     );
   }
+
+  double _scaleAnimation = 1.0;
 }
 
 class HoldsScreen extends StatefulWidget {
@@ -788,8 +892,8 @@ class _HoldsScreenState extends State<HoldsScreen> {
 
   Future<void> _fetchHolds() async {
     final prefs = await SharedPreferences.getInstance();
-    final auth = prefs.getString('auth') ?? ''; // Changed: Use stored auth instead of cardnumber/password
-    final patronId = prefs.getString('patron_id') ?? '74'; // Changed: Use stored patron_id (borrowernumber) with default 74
+    final auth = prefs.getString('auth') ?? '';
+    final patronId = prefs.getString('patron_id') ?? '74';
 
     if (auth.isEmpty) {
       Fluttertoast.showToast(
@@ -805,17 +909,16 @@ class _HoldsScreenState extends State<HoldsScreen> {
     }
 
     final headers = {
-      'Authorization': 'Basic $auth', // Changed: Use stored auth for consistency
-      'x-koha-session': prefs.getString('session_token') ?? '', // Added: Include session token if available
+      'Authorization': 'Basic $auth',
+      'x-koha-session': prefs.getString('session_token') ?? '',
       'Accept': 'application/json',
     };
 
-    // Changed: Use patron_id (borrowernumber) instead of cardnumber in URL
     final holdsUrl = Uri.parse('https://library.al-burhaan.org/api/v1/patrons/$patronId/holds');
 
     try {
       final response = await http.get(holdsUrl, headers: headers).timeout(const Duration(seconds: 10));
-      print('Holds Fetch Response: ${response.statusCode} - ${response.body}'); // Added: Debug log for response
+      print('Holds Fetch Response: ${response.statusCode} - ${response.body}');
       if (response.statusCode == 200) {
         setState(() {
           holds = jsonDecode(response.body);
@@ -823,7 +926,7 @@ class _HoldsScreenState extends State<HoldsScreen> {
         });
       } else {
         Fluttertoast.showToast(
-          msg: '${tr('error_fetching_holds')}: ${response.statusCode} - ${response.body}', // Changed: Include status and body for debugging
+          msg: '${tr('error_fetching_holds')}: ${response.statusCode} - ${response.body}',
           toastLength: Toast.LENGTH_LONG,
           gravity: ToastGravity.BOTTOM,
           backgroundColor: Colors.red,
@@ -847,7 +950,7 @@ class _HoldsScreenState extends State<HoldsScreen> {
 
   Future<void> _cancelHold(int holdId) async {
     final prefs = await SharedPreferences.getInstance();
-    final auth = prefs.getString('auth') ?? ''; // Changed: Use stored auth
+    final auth = prefs.getString('auth') ?? '';
 
     if (auth.isEmpty) {
       Fluttertoast.showToast(
@@ -862,8 +965,8 @@ class _HoldsScreenState extends State<HoldsScreen> {
     }
 
     final headers = {
-      'Authorization': 'Basic $auth', // Changed: Use stored auth
-      'x-koha-session': prefs.getString('session_token') ?? '', // Added: Include session token
+      'Authorization': 'Basic $auth',
+      'x-koha-session': prefs.getString('session_token') ?? '',
       'Accept': 'application/json',
     };
 
@@ -882,7 +985,7 @@ class _HoldsScreenState extends State<HoldsScreen> {
         await _fetchHolds();
       } else {
         Fluttertoast.showToast(
-          msg: '${tr('failed_to_cancel_hold')}: ${response.statusCode} - ${response.body}', // Changed: Include status and body
+          msg: '${tr('failed_to_cancel_hold')}: ${response.statusCode} - ${response.body}',
           toastLength: Toast.LENGTH_SHORT,
           gravity: ToastGravity.BOTTOM,
           backgroundColor: Colors.red,
@@ -929,10 +1032,11 @@ class _HoldsScreenState extends State<HoldsScreen> {
         'isPending': true,
       }),
       ...holds.map((hold) => {
-        'biblioId': hold['biblio_id'] ?? hold['biblioId'], // Handle possible key variations
+        'biblioId': hold['biblio_id'] ?? hold['biblioId'],
         'hold_id': hold['hold_id'],
       }),
     ];
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
@@ -958,7 +1062,7 @@ class _HoldsScreenState extends State<HoldsScreen> {
               if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {
                 final book = snapshot.data!;
                 final currentStatus = isPending ? tr('pending_email') : (hold['status'] ?? 'Pending');
-                final isFavorite = false; // Placeholder; adjust if favorites should persist for holds
+                final isFavorite = false;
 
                 return TweenAnimationBuilder(
                   tween: Tween<double>(begin: 0, end: 1),
@@ -974,67 +1078,114 @@ class _HoldsScreenState extends State<HoldsScreen> {
                   },
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    child: Card(
-                      elevation: 3,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.all(12),
-                        leading: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: CachedNetworkImage(
-                            imageUrl: book.imageUrl ?? '',
-                            placeholder: (context, url) => SizedBox(
-                              width: 80.0,
-                              height: 80.0,
-                              child: const Center(child: CircularProgressIndicator()),
-                            ),
-                            errorWidget: (context, url, error) =>
-                            const Icon(Icons.broken_image, size: 80.0),
-                            width: 80.0,
-                            height: 80.0,
-                            fit: BoxFit.contain,
+                    child: GestureDetector(
+                      onTapDown: (_) {
+                        setState(() => _scaleAnimation = 0.95);
+                      },
+                      onTapUp: (_) {
+                        setState(() => _scaleAnimation = 1.0);
+                        BookDetailBottomSheet.showBookDetailsBottomSheet(context, biblioId);
+                      },
+                      onTapCancel: () {
+                        setState(() => _scaleAnimation = 1.0);
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        transform: Matrix4.identity()..scale(_scaleAnimation),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.surface,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Theme.of(context).colorScheme.shadow,
+                                offset: Offset(4, 4),
+                                blurRadius: 8,
+                                spreadRadius: 1,
+                              ),
+                              BoxShadow(
+                                color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade200,
+                                offset: Offset(-4, -4),
+                                blurRadius: 8,
+                                spreadRadius: 1,
+                              ),
+                            ],
                           ),
-                        ),
-                        title: Text(book.title, style: const TextStyle(fontWeight: FontWeight.w600)),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(book.author ?? 'Unknown Author'),
-                            const SizedBox(height: 6),
-                            Row(
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.all(12),
+                            leading: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: CachedNetworkImage(
+                                imageUrl: book.imageUrl ?? '',
+                                placeholder: (context, url) => SizedBox(
+                                  width: 80.0,
+                                  height: 80.0,
+                                  child: const Center(child: CircularProgressIndicator()),
+                                ),
+                                errorWidget: (context, url, error) =>
+                                const Icon(Icons.broken_image, size: 80.0),
+                                width: 80.0,
+                                height: 80.0,
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                            title: Text(
+                              book.title,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context).textTheme.bodyLarge?.color,
+                              ),
+                            ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Container(
-                                  width: 10,
-                                  height: 10,
-                                  margin: const EdgeInsets.only(right: 6),
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: isPending ? Colors.grey : Colors.green,
+                                Text(
+                                  book.author ?? 'Unknown Author',
+                                  style: TextStyle(
+                                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                                    fontSize: 13,
                                   ),
                                 ),
-                                Text(
-                                  currentStatus,
-                                  style: const TextStyle(fontSize: 13),
+                                const SizedBox(height: 6),
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 10,
+                                      height: 10,
+                                      margin: const EdgeInsets.only(right: 6),
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: isPending ? Colors.grey : Colors.green,
+                                      ),
+                                    ),
+                                    Text(
+                                      currentStatus,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Theme.of(context).textTheme.bodyMedium?.color,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
-                          ],
-                        ),
-                        trailing: Wrap(
-                          spacing: 8,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.cancel),
-                              tooltip: tr(isPending ? 'cancel_pending_hold' : 'cancel_hold'),
-                              onPressed: () => isPending
-                                  ? _cancelPendingHold(biblioId.toString())
-                                  : _cancelHold(hold['hold_id']),
+                            trailing: Wrap(
+                              spacing: 8,
+                              children: [
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.cancel,
+                                    color: Theme.of(context).iconTheme.color,
+                                  ),
+                                  tooltip: tr(isPending ? 'cancel_pending_hold' : 'cancel_hold'),
+                                  onPressed: () => isPending
+                                      ? _cancelPendingHold(biblioId.toString())
+                                      : _cancelHold(hold['hold_id']),
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
-                        onTap: () {
-                          BookDetailBottomSheet.showBookDetailsBottomSheet(context, biblioId);
-                        },
                       ),
                     ),
                   ),
@@ -1051,4 +1202,6 @@ class _HoldsScreenState extends State<HoldsScreen> {
       ),
     );
   }
+
+  double _scaleAnimation = 1.0;
 }

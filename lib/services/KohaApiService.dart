@@ -33,18 +33,18 @@ class KohaApiService {
     print("Requesting URL: $url");
     if (response.statusCode == 200) {
       final responseBody = utf8.decode(response.bodyBytes);
-      print("API Response: $responseBody");
-      List<dynamic> booksJson = jsonDecode(responseBody);
-      return booksJson.map((data) => BookResponse.fromJson(data)).toList();
+      print("API Response: $responseBody"); // Added this line to print the API response
+      List<dynamic> booksJson = jsonDecode(responseBody); // Changed from json.decode to jsonDecode
+      return booksJson.map((data) => BookResponse.fromJson(data)).toList(); // Changed from .cast to .toList
     } else {
       print("Failed to fetch books. Status code: ${response.statusCode}, Response: ${response.body}");
-      throw Exception('Failed to load books. Status code: ${response.statusCode}');
+      throw Exception('Failed to load books. Status code: ${response.statusCode}'); // Added this line
     }
   }
 
-  Future<BookDetail> fetchBookDetail(int biblioId) async {
+  Future<BookDetail> fetchBookDetail(int biblioId) async { // Changed from fetchBooks to fetchBookDetail
     final basicAuth = await _getAuthHeader();
-    String url = "$baseUrl/biblios/$biblioId";
+    String url = "$baseUrl/biblios/$biblioId"; // Added this line
 
     var response = await http.get(Uri.parse(url), headers: {
       'Authorization': basicAuth,
